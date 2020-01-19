@@ -70,3 +70,10 @@ def add_bipolar_derivation(raw, ch_1, ch_2):
     adds a channel to the given raw instance that is ch_1-ch_2
     """
     mne.set_bipolar_reference(raw, ch_1, ch_2)
+
+def process_epochs(trigger, epochs, notch_list=[50], highFilter=30, lowFilter=1, samp_rate=2048):
+    curr_epochs = epochs[trigger]
+    filt_epochs = curr_epochs.copy()
+    filt_epochs = mne.filter.notch_filter(filt_epochs, samp_rate, notch_list)
+    filt_epochs.filter(l_freq=lowFilter, h_freq=highFilter)
+    return filt_epochs
