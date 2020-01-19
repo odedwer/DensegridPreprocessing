@@ -40,6 +40,7 @@ def read_bdf_files():
     order of names (lexicographic)
     :return: The loaded raw object (preloaded)
     """
+    # TODO: don't concatenate, return list
     # get file path using GUI
     Tk().withdraw()
     filename = askopenfilename(title="Please choose ")
@@ -54,14 +55,10 @@ def read_bdf_files():
             count += 1
     print("Found", count, " BDF files.")
     # open file as RAW object, preload data into memory
-    ret = None
+    ret = []
     for file_name in sorted(filenames):
         if ret is not None:
             ret.append(mne.io.read_raw_bdf(os.path.join(dir_path, file_name), preload=True))
-        else:
-            ret = mne.io.read_raw_bdf(os.path.join(dir_path, file_name), preload=True)
-    ret.save(just_filename[:just_filename.rfind('_')] + "_raw.fif")
-    # save_data(ret, just_filename[:just_filename.rfind('_')] + "_raw")
     return ret
 
 
