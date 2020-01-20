@@ -32,7 +32,7 @@ ica.fit(raw)
 
 #%%
 # plot components topography
-ica.plot_components(picks=range(27))
+ica.plot_components(outlines='skirt',picks=range(27))
 # ica.plot_sources(raw, range(27))
 
 #%%
