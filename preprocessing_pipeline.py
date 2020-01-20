@@ -14,6 +14,8 @@ from tkinter import Tk
 from preprocess_utilities import *
 
 ## upload raw files AFTER robust detrending
+raw = read_bdf_files()
+load_from_mat()
 
 ## concatenate to one raw file
 
