@@ -67,12 +67,3 @@ epochs = mne.Epochs(raw, events, event_id=event_dict, tmin=-0.2, tmax=1.6,
                     reject=reject_criteria, preload=True)
 
 
-#%% # filter triggers for ERP - choose triggers, set parameters, filter bandpass+notch, set reference
-filt_epochs = process_epochs('short_word',short_epochs) #filters included by default!
-evoked = filt_epochs.average()
-evoked.plot_topomap(times=[0, 0.05, 0.1, 0.15, 0.2,0.25, 0.3, 0.4, 0.5,0.7,0.9])
-
-#%% # visualize ERP by electrode
-filt_epochs_plot = filt_epochs.plot_image(picks=['A1'])
-
-## time frequency analysis
