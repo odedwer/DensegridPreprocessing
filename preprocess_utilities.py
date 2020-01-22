@@ -7,8 +7,7 @@ import mne
 from tkinter.filedialog import askopenfilename
 from tkinter import Tk
 import pickle
-
-from scipy.io import loadmat
+from h5py import File
 
 
 def save_data(obj, filename):
@@ -71,52 +70,28 @@ def add_bipolar_derivation(raw, ch_1, ch_2):
     mne.set_bipolar_reference(raw, ch_1, ch_2)
 
 
-def load_mat_files_to_raws(mat_filenames, data_variable_names, raws):
+def load_raws_from_mat(mat_filename, raws):
     """
-    loads EEG data into mne.Raw objects from .mat files
-    :param mat_filenames: list, str
-        The names of the .mat files from which to load EEG data. Each .mat should have 1 EEG data matrix
-    :param data_variable_names: list, str
-        The names of the variables in each .mat files containing the EEG data
-    :param raws: list, mne.io.Raw
-        raw object that holds the correct info for the data. can be obtained by reading the same BDF used in matlab
-        into raw object. preload false for this.
-    :return: list of raw objects loaded from
+    Reads a single .mat file to mne.io.Raw objects
+    :param mat_filename: The name of the /mat file to load from.
+        This function assumes that the .mat file contains only one variable.
+        This variable should be a cell array containing the detrended data for each block
+        in each cell.
+    :param raws: The original raw objects that correspond to the data in each cell of the cell array in the given .mat file.
+        These are needed for the info object in order to turn the arrays to mne.io.Raw objects
+    :return: a list of raw objects that contain the data from the .mat file
     """
-    # sanity checks and input checks
-    if type(raws) is not list:
-        raws = [raws]
-    if type(mat_filenames) is not list:
-        mat_filenames = [mat_filenames]
-    if type(raws) is not list:
-        data_variable_names = [data_variable_names]
-    if len(mat_filenames) != len(data_variable_names):
-        print("Incompatible lengths! mat_filenames and data_variable_names should have the same length!",
-              file=sys.stderr)
-        return
-    if len(mat_filenames) != len(raws):
-        print("Incompatible lengths! mat_filenames and raws should have the same length!",
-              file=sys.stderr)
-        return
-    if len(raws) != len(data_variable_names):
-        print("Incompatible lengths! raws and data_variable_names should have the same length!",
-              file=sys.stderr)
-        return
-
-    # actual code starts from here
-    ret = list()
-    for i, mat_filename in enumerate(mat_filenames):
-        if not os.path.exists(mat_filename) and not os.path.exists(mat_filename + ".mat"):
-            print("File " + mat_filename + " can't be found. Please enter a relative path to the file.",
-                  file=sys.stderr)
-            continue
-        print("loading", mat_filename + "...")
-        mat_file: dict = loadmat(mat_filename)
-        if data_variable_names[i] not in mat_file:
-            print("File ", mat_filename, " doesn't contain a variable named", data_variable_names[i],
-                  ". Please try again and enter the name of the variable containing the EEG data.", file=sys.stderr)
-            continue
-        print("converting to raw...")
-        ret.append(mne.io.RawArray(np.array(mat_file[data_variable_names[i]]).T, raws[i].info))
-        print("added to result in index", len(ret) - 1)
-    return ret
+    print("starting....")
+    arrays = list()
+    with File(mat_filename) as mat_file:
+        print("opened file...")
+        for key in mat_file.keys():
+            if key == '#refs#':
+                continue
+            data = mat_file[key]
+            for arr in data:
+                arrays.append(mat_file[arr[0]])
+            for i, arr in enumerate(arrays):
+                print("parsing block", str(i) + "...")
+                arrays[i] = mne.io.RawArray(arr, raws[i].info)
+    return arrays
