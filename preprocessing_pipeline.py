@@ -1,3 +1,4 @@
+
 # %%
 # ##import
 import os
@@ -67,5 +68,6 @@ event_dict = {'short_word': 12, 'short_resp': 13, 'long_word': 22,
 raw.set_eeg_reference(ref_channels=['M1', 'M2'])
 epochs = mne.Epochs(raw, events, event_id=event_dict, tmin=-0.2, tmax=1.6,
                     reject=reject_criteria, preload=True)
+
 
 
