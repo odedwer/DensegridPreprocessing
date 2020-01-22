@@ -82,6 +82,31 @@ y = HPF(data,2048,cutoff);
 tit = sprintf('HPF %0.1fHz',cutoff);
 
 subplot(nsubplts,1,subnum)
+
 plot(y);
 title(tit)
 subnum=subnum+1;
+
+%% detrend all data of subject, save as 3d cell array of detrended blocks
+
+detrended_data = cell(size(data_array));
+ord = 10;
+window = 0:round(0.5*2048); %num of timepoints to exclude 
+relevant_events = [12 22];
+for i=1:length(detrended_data)
+    onsets = [];
+    for j=1:length(event_array{i})
+        if event_array{i}(j).value==12
+            onsets = [onsets;event_array{i}(j).sample];
+        elseif event_array{i}(j).value==22
+            onsets = [onsets;event_array{i}(j).sample];
+        end    
+    end
+    w=ones(size(data_array{i}));
+    w(onsets+window)=0;
+    % not sure if this gives required effect, needs to be checked against
+    % single channel to make sure
+    [y,w,r] = nt_detrend(data_array{i},ord,w);
+    detrended_data{i} = y;
+end
+save('raw_test.mat','detrended_data','-v7.3')
