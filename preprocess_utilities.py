@@ -70,6 +70,13 @@ def add_bipolar_derivation(raw, ch_1, ch_2):
 
 
 def process_epochs(trigger, epochs, notch_list=[50], highFilter=30, lowFilter=1, samp_rate=2048):
+    """
+    Gal Chen
+    this function is responsible for the processing of existing 'epochs' object and adding the relevant filters
+    most parameters are default but can be changed
+    notcch list is a list of amplitudes of line noise to be filtered ouy
+    obligatory: the specific trigger we epoch by ("short words") and epochs object that was previously created
+    """
     curr_epochs = epochs[trigger]
     filt_epochs = curr_epochs.copy()
     filt_epochs = mne.filter.notch_filter(filt_epochs, samp_rate, notch_list)
