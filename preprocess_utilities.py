@@ -7,6 +7,7 @@ import mne
 from tkinter.filedialog import askopenfilename
 from tkinter import Tk
 import pickle
+from h5py import File
 
 
 def save_data(obj, filename):
@@ -34,17 +35,17 @@ def load_data(filename):
 
 def read_bdf_files():
     """
-    Reads bdf file from disk. If there are several files, reads them all to the same raw object.
+    Reads bdf file from disk. If there are several files, reads them all to different raw objects.
     GUI will open to choose a file from a folder. Any file in that folder that has the same name of the
-    chosen file up to the last _ in the filename will be added to the final raw object, by
+    chosen file up to the last _ in the filename will be added opened as a raw object, by
     order of names (lexicographic)
-    :return: The loaded raw object (preloaded)
+    :return: List of the raw objects (preloaded)
     """
     # TODO: don't concatenate, return list
     # get file path using GUI
     Tk().withdraw()
     filename = askopenfilename(title="Please choose ")
-    filenames = [filename]
+    filenames = []
     dir_path = os.path.dirname(filename)
     just_filename = os.path.basename(filename)
     count = 0
@@ -83,3 +84,28 @@ def process_epochs(trigger, epochs, notch_list=[50], highFilter=30, lowFilter=1,
     filt_epochs.filter(l_freq=lowFilter, h_freq=highFilter)
     return filt_epochs
 
+def load_raws_from_mat(mat_filename, raws):
+    """
+    Reads a single .mat file to mne.io.Raw objects
+    :param mat_filename: The name of the /mat file to load from.
+        This function assumes that the .mat file contains only one variable.
+        This variable should be a cell array containing the detrended data for each block
+        in each cell.
+    :param raws: The original raw objects that correspond to the data in each cell of the cell array in the given .mat file.
+        These are needed for the info object in order to turn the arrays to mne.io.Raw objects
+    :return: a list of raw objects that contain the data from the .mat file
+    """
+    print("starting....")
+    arrays = list()
+    with File(mat_filename) as mat_file:
+        print("opened file...")
+        for key in mat_file.keys():
+            if key == '#refs#':
+                continue
+            data = mat_file[key]
+            for arr in data:
+                arrays.append(mat_file[arr[0]])
+            for i, arr in enumerate(arrays):
+                print("parsing block", str(i) + "...")
+                arrays[i] = mne.io.RawArray(arr, raws[i].info)
+    return arrays
