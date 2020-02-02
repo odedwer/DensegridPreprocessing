@@ -22,11 +22,11 @@ from preprocess_utilities import *
 
 # %% parameters
 freq_range = [1, 200]
-base_correction = (-0.25, 0);
+base_correction = (-0.25, 0)
 correction_mode = 'mean'
-alpha = [8, 12];
-beta = [13, 30];
-narrowgamma = [31, 60];
+alpha = [8, 12]
+beta = [13, 30]
+narrowgamma = [31, 60]
 high_gamma = [80, 200]
 
 # %% # triggers for ERP - choose triggers, create topomap and ERP graph per chosen electrode ##n all
@@ -55,6 +55,9 @@ power.plot_topomap(ch_type='eeg', tmin=0, tmax=1.8, fmin=alpha[0], fmax=alpha[1]
                    baseline=base_correction, outlines='skirt', mode=correction_mode, axes=axis[0],
                    title='Alpha', show=False)
 power.plot_topomap(ch_type='eeg', tmin=0, tmax=1.8, fmin=beta[0], fmax=beta[1],
+                   baseline=base_correction, outlines='skirt', mode=correction_mode, axes=axis[1],
+                   title='Beta', show=False)
+power.plot_topomap(ch_type='eeg', tmin=0, tmax=1.8, fmin=80, fmax=150,
                    baseline=base_correction, outlines='skirt', mode=correction_mode, axes=axis[1],
                    title='Beta', show=False)
 mne.viz.tight_layout()
