@@ -1,13 +1,13 @@
 # %%
-import os
-import sys
-import numpy as np
 import matplotlib
 import mne
-from tkinter.filedialog import askopenfilename
-from tkinter import Tk
+import numpy as np
+import os
 import pickle
+import sys
 from h5py import File
+from tkinter import Tk
+from tkinter.filedialog import askopenfilename
 
 
 def save_data(obj, filename):
@@ -66,8 +66,12 @@ def read_bdf_files():
 def add_bipolar_derivation(raw, ch_1, ch_2):
     """
     adds a channel to the given raw instance that is ch_1-ch_2
+    :param raw: raw object to derive channel from
+    :param ch_1: anode
+    :param ch_2: cathode
     """
-    mne.set_bipolar_reference(raw, ch_1, ch_2)
+    raw = mne.set_bipolar_reference(raw, ch_1, ch_2)
+    return raw
 
 
 def process_epochs(trigger, epochs, notch_list=[50], highFilter=30, lowFilter=1, samp_rate=2048):
