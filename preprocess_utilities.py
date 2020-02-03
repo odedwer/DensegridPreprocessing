@@ -1,13 +1,11 @@
 # %%
-import matplotlib
-import mne
-import numpy as np
 import os
 import pickle
-import sys
-from h5py import File
 from tkinter import Tk
 from tkinter.filedialog import askopenfilename
+
+import mne
+from h5py import File
 
 
 def save_data(obj, filename):
@@ -33,7 +31,7 @@ def load_data(filename):
         return pickle.load(save_file)
 
 
-def read_bdf_files():
+def read_bdf_files(preload=True):
     """
     Reads bdf file from disk. If there are several files, reads them all to different raw objects.
     GUI will open to choose a file from a folder. Any file in that folder that has the same name of the
@@ -59,7 +57,7 @@ def read_bdf_files():
     ret = []
     for file_name in sorted(filenames):
         if ret is not None:
-            ret.append(mne.io.read_raw_bdf(os.path.join(dir_path, file_name), preload=True))
+            ret.append(mne.io.read_raw_bdf(os.path.join(dir_path, file_name), preload=preload))
     return ret
 
 
@@ -70,11 +68,11 @@ def add_bipolar_derivation(raw, ch_1, ch_2):
     :param ch_1: anode
     :param ch_2: cathode
     """
-    raw = mne.set_bipolar_reference(raw, ch_1, ch_2)
+    raw = mne.set_bipolar_reference(raw, ch_1, ch_2, drop_refs=False)
     return raw
 
 
-def process_epochs(trigger, epochs, notch_list=[50], highFilter=30, lowFilter=1, samp_rate=2048):
+def process_epochs(trigger, epochs, notch_list=None, high_filter=30, low_filter=1, samp_rate=2048):
     """
     Gal Chen
     this function is responsible for the processing of existing 'epochs' object and adding the relevant filters
@@ -82,11 +80,14 @@ def process_epochs(trigger, epochs, notch_list=[50], highFilter=30, lowFilter=1,
     notcch list is a list of amplitudes of line noise to be filtered ouy
     obligatory: the specific trigger we epoch by ("short words") and epochs object that was previously created
     """
+    if notch_list is None:
+        notch_list = [50]
     curr_epochs = epochs[trigger]
     filt_epochs = curr_epochs.copy()
     filt_epochs = mne.filter.notch_filter(filt_epochs, samp_rate, notch_list)
-    filt_epochs.filter(l_freq=lowFilter, h_freq=highFilter)
+    filt_epochs.filter(l_freq=low_filter, h_freq=high_filter)
     return filt_epochs
+
 
 def load_raws_from_mat(mat_filename, raws):
     """
