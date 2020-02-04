@@ -13,8 +13,8 @@ for i=1:length(file_names)
 end
 
 %% save things for easy access
-blk = 4;
-channel = 'A23';
+blk = 1;
+channel = 'A3';
 
 chan_num = find(strcmp(header_array{blk}.label,channel));
 data = data_array{blk}(:,chan_num);
@@ -30,21 +30,51 @@ for i=1:length(event_array{blk})
 end
 
 %% plot our chosen channel
+
+%  tmp = zeros(size(data));
+%  tmp(2048*140:end)=100;
+%  data = data +tmp;
+
 ERPfigure();subnum=1;nsubplts=4;
-subplot(nsubplts,1,subnum)
+hax = [];
+hax(subnum)=subplot(nsubplts,1,subnum);
+%plot((1:length(data))/2048,data-mean(data))
 plot(data)
 title('Data')
+subnum=subnum+1;
+
+%% destep - decided not to do this, erase our changes to their code!!!
+[y,stepList]=nt_destep(data,[],8*2048); %,thresh,guard,depth,minstep)
+tit = 'desteped';
+
+hax(subnum)=subplot(nsubplts,1,subnum);
+%plot((1:length(data))/2048,y);hold on
+a = plot(y);hold on
+title(tit)
 subnum=subnum+1;
 
 %% do robust detrending - polynomial
 
 ord = 10;
 tit = sprintf('Ord %d',ord);
-[y,w,r] = nt_detrend(data,ord);
+[y,w] = nt_detrend(data,ord);
 
-subplot(nsubplts,1,subnum)
+hax(subnum)=subplot(nsubplts,1,subnum);
+plot((1:length(data))/2048,y);hold on
+%scatter(find(~w),ones(1,length(find(~w))),'r*')
+title(tit)
+subnum=subnum+1;
+
+%% do robust detrending - polynomial with windows
+
+ord = 10;win=25*2048;
+tit = sprintf('Ord %d Win %d',ord,win);
+[y,w] = nt_detrend(data,ord,[],[],[],[],win);
+
+hax(subnum)=subplot(nsubplts,1,subnum);
+%plot((1:length(data))/2048,y);hold on
 plot(y);hold on
-scatter(find(~w),ones(1,length(find(~w))),'r*')
+scatter(find(~w),ones(1,length(find(~w))),'b*')
 title(tit)
 subnum=subnum+1;
 
@@ -57,7 +87,7 @@ w=ones(size(data));
 w(onsets+window)=0;
 [y,w,r] = nt_detrend(data,ord,w);
 
-subplot(nsubplts,1,subnum)
+hax(subnum)=subplot(nsubplts,1,subnum);
 plot(y);hold on
 scatter(find(~w),ones(1,length(find(~w))),'r*')
 title(tit)
@@ -69,23 +99,28 @@ ord = 6;
 [y,w,r]=nt_detrend(data,ord,[],'sinusoids');
 tit = sprintf('Ord %d, sinusoids',ord);
 
-subplot(nsubplts,1,subnum)
+hax(subnum)=subplot(nsubplts,1,subnum);
 plot(y);hold on
 scatter(find(~w),ones(1,length(find(~w))),'r*')
 title(tit)
 subnum=subnum+1;
 
 %% compare to HPF
-cutoff = 0.1;
+cutoff = 1;
 
 y = HPF(data,2048,cutoff);
 tit = sprintf('HPF %0.1fHz',cutoff);
 
-subplot(nsubplts,1,subnum)
+hax(subnum)=subplot(nsubplts,1,subnum);
 
 plot(y);
+%plot((1:length(data))/2048,y);
+
 title(tit)
 subnum=subnum+1;
+
+%%
+xlim(hax,[1000 1100])
 
 %% detrend all data of subject, save as 3d cell array of detrended blocks
 
