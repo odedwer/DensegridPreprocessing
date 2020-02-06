@@ -6,8 +6,8 @@ from preprocess_utilities import *
 # matplotlib.use('TkAgg')
 # %%
 # upload raw files AFTER robust detrending
-raws = read_bdf_files()
-
+raws = read_bdf_files(preload=True)
+detrended_raws = load_raws_from_mat('detrended_ord10_10s_window.mat', raws)
 # concatenate to one raw file
 raw = mne.concatenate_raws(raws)
 raw = add_bipolar_derivation(raw, 'LHEOG', 'RHEOG')
@@ -53,6 +53,7 @@ eog_map_dict = {'Nose': 'eog', 'LHEOG': 'eog', 'RHEOG': 'eog', 'RVEOGS': 'eog', 
                 'M2': 'eog', 'LVEOGI': 'eog'}
 raw.set_channel_types(mapping=eog_map_dict)
 # %%
+
 eog_indices, eog_scores = ica.find_bads_eog(raw)
 ica.plot_scores(eog_scores, title="Nose correlations")
 eog_indices, eog_scores = ica.find_bads_eog(raw, ch_name="LHEOG", threshold=2.5)
