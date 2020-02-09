@@ -22,19 +22,9 @@ if __name__ == "__main__":
     print("plotting properties...")
     comp_jumps = np.linspace(0, ica.n_components_, int(ica.n_components_ / 10) + 1) ##the begining of each components group to be shown
     for i in range(len(comp_jumps)): # go over the components and show 10 each time
-            comps = range(int(comp_jumps[i]), int(comp_jumps[i + 1]))
-            print("plotting from component "+str(comps))
-            ica.plot_properties(raw, picks=comps, show=False)
-            plt.show()
-            if input("stop plotting? (Y/N)") == "Y":
-                break
-    print("plotting components correlations")
-    raw = add_bipolar_derivation(raw, 'LHEOG', 'RHEOG')
-    raw = add_bipolar_derivation(raw, 'RVEOGS', 'RVEOGI')
-    eog_indices, eog_scores = ica.find_bads_eog(raw)
-    ica.plot_scores(eog_scores, title="Nose correlations")
-    eog_indices, eog_scores = ica.find_bads_eog(raw, ch_name="LHEOG-RHEOG", threshold=2.5)
-    ica.plot_scores(eog_scores, title="Horizontal eye correlations")
-    eog_indices, eog_scores = ica.find_bads_eog(raw, ch_name="RVEOGS-RVEOGI")
-    ica.plot_scores(eog_scores, title="Vertical eye correlations")
-    plt.show()
+        if input("stop plotting? (Y/N)") == "Y":
+            break
+        comps = range(int(comp_jumps[i]), int(comp_jumps[i + 1]))
+        print("plotting from component "+str(comps))
+        ica.plot_properties(raw, picks=comps, show=False)
+        plt.show()
