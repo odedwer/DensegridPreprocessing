@@ -49,6 +49,7 @@ ica.plot_properties(raw, picks=range(11))
 # %% # plot correlation of all components with eog channel
 ica.exclude = [0,3,7,12,16,17,18]  ####n all
 # find which ICs match the EOG pattern
+# %%
 eog_map_dict = {'Nose': 'eog', 'LHEOG': 'eog', 'RHEOG': 'eog', 'RVEOGS': 'eog', 'RVEOGI': 'eog', 'M1': 'eog',
                 'M2': 'eog', 'LVEOGI': 'eog'}
 raw.set_channel_types(mapping=eog_map_dict)

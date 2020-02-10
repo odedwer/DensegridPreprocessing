@@ -27,4 +27,6 @@ if __name__ == "__main__":
         comps = range(int(comp_jumps[i]), int(comp_jumps[i + 1]))
         print("plotting from component "+str(comps))
         ica.plot_properties(raw, picks=comps, show=False)
+        ica.plot_sources(raw, picks=comps, show=False)
+        #raw.plot(duration=10, n_channels=15, order=range(256))
         plt.show()
