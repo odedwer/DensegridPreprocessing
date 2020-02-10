@@ -8,6 +8,7 @@ components = range(20) # number of components to show
 if __name__ == "__main__":
     mpl.use("TkAgg")
     raw = mne.io.read_raw_fif(sys.argv[1])
+    raw.load_data()
     raw.set_montage(montage=mne.channels.make_standard_montage('biosemi256', head_size=0.089), raise_if_subset=False)
     print("plotting full psd...")
     raw.plot_psd(fmin=0,fmax=300,picks=range(20),n_fft=10*2048)
@@ -17,6 +18,7 @@ if __name__ == "__main__":
     # plt.show()
     ica = mne.preprocessing.read_ica(sys.argv[2])
     print("plotting components...")
+    ica.plot_overlay(raw)
     ica.plot_components(outlines='skirt', picks=components, show=False)
     plt.show()
     print("plotting properties...")
