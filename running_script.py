@@ -21,14 +21,17 @@ if __name__ == "__main__":
     ica.plot_overlay(raw)
     ica.plot_components(outlines='skirt', picks=components, show=False)
     plt.show()
+
     print("plotting properties...")
-    comp_jumps = np.linspace(0, ica.n_components_, int(ica.n_components_ / 10) + 1) ##the begining of each components group to be shown
-    for i in range(len(comp_jumps)): # go over the components and show 10 each time
+    # the beginning of each components group to be shown
+    comp_jumps = np.linspace(0, ica.n_components_, int(ica.n_components_ / 5) + 1)
+    for i in range(len(comp_jumps)): # go over the components and show 5 each time
         if input("stop plotting? (Y/N)") == "Y":
             break
         comps = range(int(comp_jumps[i]), int(comp_jumps[i + 1]))
         print("plotting from component "+str(comps))
-        ica.plot_properties(raw, picks=comps, show=False)
-        ica.plot_sources(raw, picks=comps, show=False)
-        #raw.plot(duration=10, n_channels=15, order=range(256))
+        ica.plot_properties(raw, picks=comps, show=False)  # plot component properties
+        plot_correlations(ica, raw, components=comps,
+                          picks=['A1','Nose','RHEOG','LHEOG','RVEOGS','RVEOGI','M1','M2','LVEOGI'])
+        ica.plot_sources(raw, picks=comps, show=False) #plot sources
         plt.show()

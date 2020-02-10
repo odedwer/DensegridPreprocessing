@@ -3,6 +3,8 @@ import os
 import pickle
 from tkinter import Tk
 from tkinter.filedialog import askopenfilename
+from pandas import DataFrame
+import seaborn as sn
 
 import mne
 from h5py import File
@@ -77,7 +79,7 @@ def process_epochs(trigger, epochs, notch_list=None, high_filter=30, low_filter=
     Gal Chen
     this function is responsible for the processing of existing 'epochs' object and adding the relevant filters
     most parameters are default but can be changed
-    notcch list is a list of amplitudes of line noise to be filtered ouy
+    notch list is a list of amplitudes of line noise to be filtered ouy
     obligatory: the specific trigger we epoch by ("short words") and epochs object that was previously created
     """
     if notch_list is None:
@@ -114,3 +116,29 @@ def load_raws_from_mat(mat_filename, raws):
                 print("parsing block", str(i) + "...")
                 arrays[i] = mne.io.RawArray(arr, raws[i].info)
     return arrays
+
+
+def plot_correlations(ica, raw, components,
+                  picks=['A1', 'Nose', 'RHEOG', 'LHEOG', 'RVEOGS', 'RVEOGI', 'M1', 'M2', 'LVEOGI']):
+    """
+       Reads ica and raw and prints correlation matrix of all ica components and electrodes listed.
+       :param ica: the ica object
+       :param raw: the raw data to check correlations with
+       :param picks: the electrodes from raw we want to include in the matrix
+       :return: prints correlation matrix of all listed channels, and psds of components chosen
+       """
+    print("correlation matrix of electrodes and components...")
+    data = {}
+    # add raw channels
+    for i in picks:
+        data[i] = raw.get_data(picks=i)
+
+    ica_raw = ica.get_sources(ica, add_channels=ica_raw.ch_names)
+    set_type = {i: 'eeg' for i in ica_raw.ch_names}  #setting ica_raw
+    ica_raw.set_channel_types(mapping=set_type)
+    for i in ica_raw.ch_names[components]:
+        data[i] = ica_raw.get_data(picks=i)
+    df = DataFrame(data)
+    corr_matrix = df.corr()
+    sn.heatmap(corr_matrix, annot=True)
+    ica_raw.plot_psd(fmin=0, fmax=250, picks=comps, n_fft=10 * 2048)  # plot all psds of the 5 components
