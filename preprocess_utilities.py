@@ -168,8 +168,8 @@ def annotate_breaks(raw, trig=254, samp_rate = 2048):
        :return: raw with annotated breaks
        """
     events = mne.find_events(raw, stim_channel="Status", mask=255)
-    event_times = [i[0] / samp_rate for i in events if i[2] == 254]  #time of beginning of record
+    event_times = [i[0] / samp_rate for i in events if i[2] == trig]  #time of beginning of record
     next_trig_dur = [(events[i+1][0] / samp_rate - 2 - events[i][0]/samp_rate)
-                             for i in range(len(events)-2) if events[i][2] == 254]  ##2 seconds before next (real) trigger after 254
+                             for i in range(len(events)-2) if events[i][2] == trig]  ##2 seconds before next (real) trigger after 254
     raw._annotations = mne.Annotations(event_times, next_trig_dur, 'BAD')
-    return
+    return raw

@@ -7,16 +7,16 @@ components = range(20) # number of components to show
 
 if __name__ == "__main__":
     mpl.use("TkAgg")
-    raw = mne.io.read_raw_fif(sys.argv[1])
+    raw = mne.io.read_raw_fif(input("Hello!\nEnter raw data file: "))
     raw.load_data()
     raw.set_montage(montage=mne.channels.make_standard_montage('biosemi256', head_size=0.089), raise_if_subset=False)
     print("plotting full psd...")
-    raw.plot_psd(fmin=0,fmax=300,picks=range(20),n_fft=10*2048)
+    raw.plot_psd(fmin=0,fmax=300,picks=range(20), n_fft=10*2048)
     plt.show()
-    # print("plotting short psd...")
-    # raw.plot_psd(fmin=0,fmax=30,picks=range(20),n_fft=10*2048)
-    # plt.show()
-    ica = mne.preprocessing.read_ica(sys.argv[2])
+    print("plotting short psd...")
+    raw.plot_psd(fmin=0,fmax=30,picks=range(20), n_fft=10*2048)
+    plt.show()
+    ica = mne.preprocessing.read_ica(input("Hello again!\nEnter ica data file: "))
     print("plotting components...")
     ica.plot_overlay(raw)
     ica.plot_components(outlines='skirt', picks=components, show=False)
@@ -25,7 +25,7 @@ if __name__ == "__main__":
     print("plotting properties...")
     # the beginning of each components group to be shown
     comp_jumps = np.linspace(0, ica.n_components_, int(ica.n_components_ / 5) + 1)
-    for i in range(len(comp_jumps)): # go over the components and show 5 each time
+    for i in range(len(comp_jumps)):  # go over the components and show 5 each time
         if input("stop plotting? (Y/N)") == "Y":
             break
         comps = range(int(comp_jumps[i]), int(comp_jumps[i + 1]))

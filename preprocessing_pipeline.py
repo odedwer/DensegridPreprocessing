@@ -1,6 +1,6 @@
 # %
 # ##import
-
+import numpy as np
 from preprocess_utilities import *
 
 # matplotlib.use('TkAgg')
@@ -11,33 +11,32 @@ raws = read_bdf_files(preload=True)
 # concatenate to one raw file
 raw = mne.concatenate_raws(raws)
 copy_raw = raw.copy() #make a copy before adding the new channel
-#raw = add_bipolar_derivation(raw, 'LHEOG', 'RHEOG')
-#raw = add_bipolar_derivation(raw, 'RVEOGS', 'RVEOGI')
-# drop bad channels
-# raw = add_bipolar_derivation(raw, "LHEOG", "RHEOG")##n?
+# %% in case of existing raw file:
+raw = mne.io.read_raw_fif(input("Hello!\nEnter raw data file: "))
+raw.load_data()
+
+# %% filter, drop bad channels, annotate breaks
+#raw.load_data().filter(l_freq=.1, h_freq=None)  ##n
+raw = annotate_breaks(raw)
 raw.drop_channels(['Ana' + str(i) for i in range(1, 9)])
 raw.drop_channels(["C26", "D3"])  # bridged/noisy channels we choose to remove ##n
-mne.preprocessing.fix_stim_artifact(raw,event_id=[254])
-
 
 # set the montage of the electrodes - position on head
 # %%
 raw.set_montage(montage=mne.channels.make_standard_montage('biosemi256', head_size=0.089), raise_if_subset=False)
 
-# %%
-#raw.load_data().filter(l_freq=1., h_freq=None)  ##n
 
 # %%
 # fit ica
 # reject bad intervals** - make sure its in the right place!
-reject_criteria = dict(eeg=150e-6)  # 150 μV
+reject_criteria = dict(eeg=350e-6)  # 150 μV
 ica = mne.preprocessing.ICA(n_components=.99, random_state=97, max_iter=800)
-ica.fit(raw, reject_by_annotation=True, reject=reject_criteria)
+ica.fit(raw, reject_by_annotation=True,reject=reject_criteria)
 # %%##n
-# ica.save('ica_fits/0202-ica.fif')##n
-
+#ica.save('det_ord10_s10_w_rejected350_breaks-ica.fif')
+#raw.save('hpf01_rejected350_breaks-raw.fif')
 # %%##n
-ica = mne.preprocessing.read_ica('hpf1-ica.fif')  ##n
+#ica = mne.preprocessing.read_ica('hpf1-ica.fif')  ##n
 # %%
 # plot components topography
 ica.plot_components(outlines='skirt', picks=range(20))
