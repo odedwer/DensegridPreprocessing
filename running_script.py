@@ -32,6 +32,6 @@ if __name__ == "__main__":
         print("plotting from component "+str(comps))
         ica.plot_properties(raw, picks=comps, show=False)  # plot component properties
         plot_correlations(ica, raw, components=comps,
-                          picks=['A1','Nose','RHEOG','LHEOG','RVEOGS','RVEOGI','M1','M2','LVEOGI'])
+                          picks=['A1', 'Nose', 'RHEOG', 'LHEOG', 'RVEOGS', 'RVEOGI', 'M1', 'M2', 'LVEOGI'])
         ica.plot_sources(raw, picks=comps, show=False) #plot sources
         plt.show()
