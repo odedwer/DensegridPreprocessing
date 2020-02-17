@@ -120,7 +120,7 @@ def load_raws_from_mat(mat_filename, raws):
 
 
 def plot_correlations(ica, raw, components,
-                  picks=['A1', 'Nose', 'RHEOG', 'LHEOG', 'RVEOGS', 'RVEOGI', 'M1', 'M2', 'LVEOGI']):
+                      picks=['A1', 'Nose', 'RHEOG', 'LHEOG', 'RVEOGS', 'RVEOGI', 'M1', 'M2', 'LVEOGI']):
     """
        Reads ica and raw and prints correlation matrix of all ica components and electrodes listed.
        :param ica: the ica object
@@ -138,7 +138,7 @@ def plot_correlations(ica, raw, components,
         data_electrodes[i] = raw.get_data(picks=i)[0]
 
     ica_raw = ica.get_sources(raw)
-    set_type = {i: 'eeg' for i in ica_raw.ch_names}  #setting ica_raw
+    set_type = {i: 'eeg' for i in ica_raw.ch_names}  # setting ica_raw
     ica_raw.set_channel_types(mapping=set_type)
     for i in list(components):
         data[ica_raw.ch_names[i]] = ica_raw.get_data(picks=i)[0]
@@ -146,20 +146,21 @@ def plot_correlations(ica, raw, components,
 
     df = DataFrame(data)
     df_electrodes = DataFrame(data_electrodes)
-    df["Mean eog"] = (df_electrodes['Nose']+
-                                 df_electrodes['RHEOG']+
-                                 df_electrodes['LHEOG']+
-                                 df_electrodes['RVEOGS']+
-                                 df_electrodes['RVEOGI']+
-                                 df_electrodes['LVEOGI'])/6
+    df["Mean eog"] = (df_electrodes['Nose'] +
+                      df_electrodes['RHEOG'] +
+                      df_electrodes['LHEOG'] +
+                      df_electrodes['RVEOGS'] +
+                      df_electrodes['RVEOGI'] +
+                      df_electrodes['LVEOGI']) / 6
     df_electrodes["Mean eog"] = df["Mean eog"]
     df_ica = DataFrame(data_ica)
     corr_matrix = df.corr().filter(df_electrodes.columns, axis=1).filter(df_ica.columns, axis=0)
     sn.heatmap(corr_matrix)
-    ica_raw.plot_psd(fmin=0, fmax=250, picks=components, n_fft=10 * 2048)  # plot all psds of the 5 components
+    #  ica_raw.plot_psd(fmin=0, fmax=250, picks=components, n_fft=10 * 2048, show=False)  # plot all psds of the 5 components
+    ica_raw.plot_psd(fmin=0, fmax=250, n_fft=10 * 2048, show=False)  # plot all psds of the 5 components
 
 
-def annotate_breaks(raw, trig=254, samp_rate = 2048):
+def annotate_breaks(raw, trig=254, samp_rate=2048):
     """
        Reads raw and  annotates, for every start trigger, the parts from the trigger
        up to 1sec before the next one. RUN BEFORE ICA, and make sure that reject by annotation in ica is True.
@@ -168,8 +169,9 @@ def annotate_breaks(raw, trig=254, samp_rate = 2048):
        :return: raw with annotated breaks
        """
     events = mne.find_events(raw, stim_channel="Status", mask=255)
-    event_times = [i[0] / samp_rate for i in events if i[2] == trig]  #time of beginning of record
-    next_trig_dur = [(events[i+1][0] / samp_rate - 2 - events[i][0]/samp_rate)
-                             for i in range(len(events)-2) if events[i][2] == trig]  ##2 seconds before next (real) trigger after 254
+    event_times = [i[0] / samp_rate for i in events if i[2] == trig]  # time of beginning of record
+    next_trig_dur = [(events[i + 1][0] / samp_rate - 2 - events[i][0] / samp_rate)
+                     for i in range(len(events) - 2) if
+                     events[i][2] == trig]  ##2 seconds before next (real) trigger after 254
     raw._annotations = mne.Annotations(event_times, next_trig_dur, 'BAD')
     return raw
