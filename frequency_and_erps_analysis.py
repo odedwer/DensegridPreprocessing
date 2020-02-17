@@ -51,14 +51,11 @@ power.plot_topo(baseline=base_correction, mode=correction_mode, title='Average p
 power.plot([3], baseline=base_correction, mode=correction_mode, title=power.ch_names[3])
 # %%
 fig, axis = plt.subplots(1, 2, figsize=(7, 4))
-power.plot_topomap(ch_type='eeg', tmin=0, tmax=1.8, fmin=alpha[0], fmax=alpha[1],
+power.plot_topomap(ch_type='eeg', tmin=0, tmax=1.8, fmin=narrowgamma[0], fmax=narrowgamma[1],
                    baseline=base_correction, outlines='skirt', mode=correction_mode, axes=axis[0],
-                   title='Alpha', show=False)
-power.plot_topomap(ch_type='eeg', tmin=0, tmax=1.8, fmin=beta[0], fmax=beta[1],
+                   title='gamma', show=False)
+power.plot_topomap(ch_type='eeg', tmin=0, tmax=1.8, fmin=high_gamma[0], fmax=high_gamma[1],
                    baseline=base_correction, outlines='skirt', mode=correction_mode, axes=axis[1],
-                   title='Beta', show=False)
-power.plot_topomap(ch_type='eeg', tmin=0, tmax=1.8, fmin=80, fmax=150,
-                   baseline=base_correction, outlines='skirt', mode=correction_mode, axes=axis[1],
-                   title='Beta', show=False)
+                   title='BB_gamma', show=False)
 mne.viz.tight_layout()
 plt.show()

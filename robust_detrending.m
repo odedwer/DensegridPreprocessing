@@ -129,7 +129,9 @@ ord = 10;
 window = 0:round(0.5*2048); %num of timepoints to exclude 
 relevant_events = [12 22];
 for i=1:length(detrended_data)
+    disp(i)
     onsets = [];
+    disp('getting onsets...')
     for j=1:length(event_array{i})
         if event_array{i}(j).value==12
             onsets = [onsets;event_array{i}(j).sample];
@@ -137,11 +139,11 @@ for i=1:length(detrended_data)
             onsets = [onsets;event_array{i}(j).sample];
         end    
     end
-    w=ones(size(data_array{i}));
+    w=ones(size(data_array{i}(:,1)));
     w(onsets+window)=0;
-    % not sure if this gives required effect, needs to be checked against
-    % single channel to make sure
-    [y,w,r] = nt_detrend(data_array{i},ord,w);
-    detrended_data{i} = y;
+    disp('starting detrending...')
+    [y,w] = nt_detrend(data_array{i},ord,w,[],[],[],10*2048);
+    detrended_data{i} = y/(10^6);
+    disp('done.')
 end
-save('raw_test.mat','detrended_data','-v7.3')
+save('detrended.mat','detrended_data','-v7.3')

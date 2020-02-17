@@ -3,10 +3,12 @@ import os
 import pickle
 from tkinter import Tk
 from tkinter.filedialog import askopenfilename
+
+import numpy as np
 from pandas import DataFrame
 import pandas as pd
 import seaborn as sn
-
+import matplotlib.pyplot as plt
 import mne
 from h5py import File
 
@@ -137,7 +139,7 @@ def plot_correlations(ica, raw, components,
         data[i] = raw.get_data(picks=i)[0]
         data_electrodes[i] = raw.get_data(picks=i)[0]
 
-    ica_raw = ica.get_sources(raw)
+    ica_raw: mne.io.Raw = ica.get_sources(raw)
     set_type = {i: 'eeg' for i in ica_raw.ch_names}  # setting ica_raw
     ica_raw.set_channel_types(mapping=set_type)
     for i in list(components):
@@ -146,18 +148,18 @@ def plot_correlations(ica, raw, components,
 
     df = DataFrame(data)
     df_electrodes = DataFrame(data_electrodes)
-    df["Mean eog"] = (df_electrodes['Nose'] +
-                      df_electrodes['RHEOG'] +
-                      df_electrodes['LHEOG'] +
-                      df_electrodes['RVEOGS'] +
-                      df_electrodes['RVEOGI'] +
-                      df_electrodes['LVEOGI']) / 6
-    df_electrodes["Mean eog"] = df["Mean eog"]
+    df["Radial eog"] = -df_electrodes['A19'] + (df_electrodes['RHEOG'] +
+                                                df_electrodes['LHEOG'] +
+                                                df_electrodes['RVEOGS'] +
+                                                df_electrodes['RVEOGI'] +
+                                                df_electrodes['LVEOGI']) / 5
+    df_electrodes["Radial eog"] = df["Radial eog"]
     df_ica = DataFrame(data_ica)
     corr_matrix = df.corr().filter(df_electrodes.columns, axis=1).filter(df_ica.columns, axis=0)
-    sn.heatmap(corr_matrix)
-    #  ica_raw.plot_psd(fmin=0, fmax=250, picks=components, n_fft=10 * 2048, show=False)  # plot all psds of the 5 components
-    ica_raw.plot_psd(fmin=0, fmax=250, n_fft=10 * 2048, show=False)  # plot all psds of the 5 components
+    # sn.set_palette(sn.color_palette('RdBu_r',11))
+    sn.heatmap(corr_matrix, annot=True)  # cmap=sn.color_palette('RdBu_r', 11)
+    # ('red', 'green', 'blue', 'purple', 'gold', 'silver', 'black', 'brown')
+    ica_raw.plot_psd(fmin=0, fmax=40, picks=components, n_fft=10 * 2048, show=False, spatial_colors=False)
 
 
 def annotate_breaks(raw, trig=254, samp_rate=2048):
