@@ -159,7 +159,7 @@ def plot_correlations(ica, raw, components,
     # sn.set_palette(sn.color_palette('RdBu_r',11))
     sn.heatmap(corr_matrix, annot=True)  # cmap=sn.color_palette('RdBu_r', 11)
     # ('red', 'green', 'blue', 'purple', 'gold', 'silver', 'black', 'brown')
-    ica_raw.plot_psd(fmin=0, fmax=40, picks=components, n_fft=10 * 2048, show=False, spatial_colors=False)
+    ica_raw.plot_psd(fmin=0, fmax=250, picks=components, n_fft=10 * 2048, show=False, spatial_colors=False)
 
 
 def annotate_breaks(raw, trig=254, samp_rate=2048):

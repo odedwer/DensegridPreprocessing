@@ -1,7 +1,7 @@
 %% load all of the auditory data
 ft_defaults
-datadir='S:/Lab-Shared/Experiments/HighDenseGamma/results/EEG/Auditory/Raw/';
-file_names = ["aud_s2_1.bdf","aud_s2_2.bdf","aud_s2_3.bdf","aud_s2_4.bdf"];
+datadir='S:/Lab-Shared/Experiments/HighDenseGamma/results/EEG/Visual/Raw/';
+file_names = ["vis_s2_2.bdf","vis_s2_3.bdf","vis_s2_4.bdf","vis_s2_5.bdf"];
 savedir=[];%'./PP/'; % directory to save results
 data_array = cell(size(file_names));
 header_array = cell(size(file_names));
@@ -146,4 +146,4 @@ for i=1:length(detrended_data)
     detrended_data{i} = y/(10^6);
     disp('done.')
 end
-save('detrended.mat','detrended_data','-v7.3')
+save('detrended_vis_s2.mat','detrended_data','-v7.3')
