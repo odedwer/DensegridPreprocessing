@@ -2,8 +2,9 @@
 # ##import
 import numpy as np
 from preprocess_utilities import *
+import matplotlib
+matplotlib.use('Qt5Agg')
 
-# matplotlib.use('TkAgg')
 # %%
 # upload raw files AFTER robust detrending
 raws = read_bdf_files(preload=True)
@@ -26,33 +27,35 @@ raw.load_data()
 # raw.load_data().filter(l_freq=.1, h_freq=None)  ##n
 if input("auditory? (Y/N)") == 'Y':
     raw = annotate_breaks(raw)  # only for auditory
-raw.drop_channels(['Ana' + str(i) for i in range(1, 9)])
 raw.drop_channels(["C26", "D3"])  # bridged/noisy channels we choose to remove ##n
+raw.drop_channels(['Ana' + str(i) for i in range(1, 9)])
 
 # set the montage of the electrodes - position on head
 # %%
 raw.set_montage(montage=mne.channels.read_custom_montage("SavedResults/S2/S2.elc"), raise_if_subset=False)
-raw.set_eeg_reference(ref_channels=['M1', 'M2'])
+raw.set_eeg_reference()
 
 # %%
 eog_map_dict = {'Nose': 'eog', 'LHEOG': 'eog', 'RHEOG': 'eog', 'RVEOGS': 'eog', 'RVEOGI': 'eog', 'M1': 'eog',
                 'M2': 'eog', 'LVEOGI': 'eog'}
 raw.set_channel_types(mapping=eog_map_dict)
 # %%
-# fit ica
 # reject bad intervals** - make sure its in the right place!
 reject_criteria = dict(eeg=150e-6, eog=300e-6)  # 150 μV
 rej_step = .1  # in seconds
-raw.filter(l_freq=1, h_freq=None)
+
+# fit ica
 # %%
-ica = mne.preprocessing.ICA(n_components=.99, random_state=97, max_iter=800)
+ica = mne.preprocessing.ICA(n_components=.95, random_state=97, max_iter=800)
 # ica.fit(raw, reject_by_annotation=True, reject=reject_criteria)
 ica.fit(raw, reject_by_annotation=True, tstep=rej_step, reject=reject_criteria)
-ica.save('visual-hpf1-rejected100-ica.fif')
-raw.save('visual-hpf1-rejected100-raw.fif')
+ica.save('visual-detrended-s2-rejected100-ica.fif')
+#raw.save('visual-detrended-s2-rejected100-raw.fif')
+
 # %%
+ica = mne.preprocessing.read_ica(input())
 # checking components is in running_script.py
-ica.exclude = [0, 12, 22, 23, 46]  ####n all
+ica.exclude = [0, 1, 16]  ####n all
 
 # find which ICs match the EOG pattern
 
@@ -66,11 +69,7 @@ eog_indices, eog_scores = ica.find_bads_eog(raw, ch_name="RVEOGS-RVEOGI")
 ica.plot_scores(eog_scores, title="Vertical eye correlations")
 
 # barplot of ICA component "EOG match" scores
-
-# %%
-# exclude components
-# raw = copy_raw  ##n
-# ica.exclude = [0, 6, 7, 14, 16, 20, 11, 9]  # components we delete
+#%%
 ica.apply(raw)
 
 # %% # epoch- set triggers dictionairy, find events, crate epoch objects - divided by triggers
@@ -102,16 +101,13 @@ event_dict_vis = {'short_face': 10, 'long_face': 20,
                   'short_obj': 14, 'long_obj': 24}  # ,
 #                  'short_body': 16, 'long_body': 26}
 raw.notch_filter([50, 100, 150])  # notch filter
-filt_raw = raw.copy()  # save unfiltered copy for TF analysis ##n
-filt_raw.load_data().filter(l_freq=1, h_freq=30)  ## epoch for ERPs ##n
-filt_epochs = mne.Epochs(filt_raw, events, event_id=event_dict_vis, tmin=-0.2, tmax=1.6,
-                         reject=reject_criteria, preload=True, reject_by_annotation=True)
+raw_filt = raw.copy().filter(l_freq=1, h_freq=30) #performing fikltering on copy of raw data, not on raw itself or epochs
 # epoch raw data without filtering for TF analysis
-epochs = mne.Epochs(raw, events, event_id=event_dict_vis, tmin=-0.2, tmax=1.6,
+epochs = mne.Epochs(raw, events, event_id=event_dict_aud, tmin=-0.2, tmax=1.6,
                     reject=reject_criteria, preload=True, reject_by_annotation=True)
+filt_epochs = mne.Epochs(raw_filt, events, event_id=event_dict_aud, tmin=-0.2, tmax=1.6,
+                    reject=reject_criteria, preload=True, reject_by_annotation=True)
+
 # %%
-ds_raw: mne.io.Raw = raw.copy()
-ds_raw.resample(512)
-chosen_electrode_epochs = mne.Epochs(ds_raw, events, event_id=event_dict_vis, tmin=-0.2, tmax=1.6,
-                                     reject=reject_criteria, preload=True, reject_by_annotation=True)
+ds_epochs = epochs.copy().resample(512)
 

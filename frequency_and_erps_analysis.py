@@ -13,7 +13,7 @@ from mne.preprocessing import (ICA, create_eog_epochs, create_ecg_epochs,
 from mne.time_frequency import tfr_morlet, tfr_multitaper, psd_multitaper, psd_welch, tfr_stockwell
 from tkinter import Tk
 from tkinter.filedialog import askopenfilename
-
+from scipy import signal
 from preprocess_utilities import *
 
 ###starts with an epoch object after artifact removal
@@ -21,25 +21,26 @@ from preprocess_utilities import *
 
 
 # %% parameters
-freq_range = [1, 200]
+chosen_s_trigs = ['short_word']
+freq_range = [5, 200]
 base_correction = (-0.25, 0)
 correction_mode = 'logratio'
 alpha = [8, 12]
 beta = [13, 30]
 narrowgamma = [31, 60]
 high_gamma = [80, 200]
+freqs = (np.arange(10., 200., 3.))
+n_perm = 500
 
 # %% # triggers for ERP - choose triggers, create topomap and ERP graph per chosen electrode ##n all
-curr_epochs = filt_epochs['long_obj']  # choose the triggers you want to process
+curr_epochs = filt_epochs  # choose the triggers you want to process
 evoked = curr_epochs.average()
 evoked.plot_topomap(outlines='skirt', times=[0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 0.7, 0.9])
 
 # %% # visualize ERP by electrode
-filt_epochs_plot = curr_epochs.plot_image(picks=['A19'])
+filt_epochs_plot = curr_epochs.plot_image(picks=['A1'])
 
 # %% # time frequency analysis
-# define frequencies of interest (log-spaced)
-freqs = (np.arange(25., 200., 3.))
 curr_epochs = epochs  # choose the triggers you want to process
 
 power_long = tfr_morlet(curr_epochs, freqs=freqs, n_cycles=freqs / 2, use_fft=True,
@@ -49,17 +50,13 @@ curr_epochs = epochs['short_word']  # choose the triggers you want to process
 power_short = tfr_morlet(curr_epochs, freqs=freqs, n_cycles=freqs / 2, use_fft=True,
                          return_itc=False, decim=3, n_jobs=1)
 # %%
-freqs = np.arange(5., 200., 3.)
-fig, axs = plt.subplots(1, 3, figsize=(15, 5), sharey=True)
 power_list = []
-widths = [0.3, 0.5, 0.7]
+widths = [0.2, 0.4]
 for width in widths:
-    power_list.append(tfr_multitaper(chosen_electrode_epochs[["long_anim", "long_obj", "long_face"]], freqs=freqs,
+    power_list.append(tfr_multitaper(ds_epochs[["long_word"]], freqs=freqs,
                                      n_cycles=freqs * width, verbose=True, average=False, return_itc=False))
 # %%
-
-# %%
-evoked = chosen_electrode_epochs.average()
+evoked = ds_epochs.average()
 evoked.crop(0., 1.6)
 evoked_data = evoked.data
 times = evoked.times
@@ -67,8 +64,6 @@ times = evoked.times
 for i in range(len(power_list)):
     power_list[i].apply_baseline(mode='logratio', baseline=(-.200, 0))
     power_list[i].crop(0., 1.6)
-# %%
-n_perm = 500
 
 # %%
 for j in range(18, 145):
@@ -84,8 +79,6 @@ for j in range(18, 145):
                 T_obs_plot[c] = T_obs[c]
         vmax = np.max(np.abs(T_obs))
         vmin = -vmax
-        print("vmax", vmax)
-        print("vmin", -vmax)
         ax.imshow(T_obs, cmap=plt.cm.RdBu_r,
                   extent=[times[0], times[-1], freqs[0], freqs[-1]],
                   aspect='auto', origin='lower', vmin=vmin, vmax=vmax)
@@ -119,8 +112,24 @@ for j in range(197,200):
 # %%
 # power.save('tfr_onlyfirst50.fif', True)  ##n
 # %%
-power.plot_topo(baseline=base_correction, mode=correction_mode, title='Average power')
-power.plot([1], baseline=base_correction, mode=correction_mode, title=power.ch_names[1])
+#curr_epochs = epochs['long_anim', 'long_obj', 'long_face']  # choose the triggers you want to process
+curr_epochs = ds_epochs['long_word']
+power_long = tfr_morlet(curr_epochs, freqs=freqs, average=False, n_cycles=np.concatenate([3*np.ones(15),12*np.ones(49)]), use_fft=True,
+                        return_itc=False, decim=3, n_jobs=1)
+power_long = power_long.average()
+del curr_epochs
+
+#%%
+#curr_epochs = epochs['short_anim', 'short_obj', 'short_face']  # choose the triggers you want to process
+curr_epochs = ds_epochs[chosen_s_trigs]
+power_short = tfr_morlet(curr_epochs, freqs=freqs, average=False, n_cycles=np.concatenate([3*np.ones(15),12*np.ones(49)]), use_fft=True,
+                         return_itc=False, decim=3, n_jobs=1)
+power_short = power_short.average()
+del curr_epochs
+
+#%%
+power_long.plot_topo(baseline=base_correction, mode=correction_mode, title='Average power',vmin=-.5, vmax=.5)
+power_long.plot([1], baseline=base_correction, mode=correction_mode, title=power.ch_names[1])
 # %%
 fig, axis = plt.subplots(1, 2, figsize=(7, 4))
 power.plot_topomap(ch_type='eeg', tmin=0, tmax=1.8, fmin=narrowgamma[0], fmax=narrowgamma[1],
@@ -131,3 +140,12 @@ power.plot_topomap(ch_type='eeg', tmin=0, tmax=1.8, fmin=high_gamma[0], fmax=hig
                    title='BB_gamma', show=False)
 mne.viz.tight_layout()
 plt.show()
+
+#%% show ERP after hilbert
+epochs_hilb = epochs.copy().filter(l_freq=50, h_freq=100)
+epochs_hilb._data = abs(signal.hilbert(epochs_hilb._data))
+
+#%% show ERP after hilbert
+
+check_electrode = "A19"
+epochs_hilb.plot_image(picks=[check_electrode])
