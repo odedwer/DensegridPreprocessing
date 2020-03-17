@@ -11,7 +11,6 @@ for i=1:length(file_names)
     data_array{i} = ft_read_data([datadir,convertStringsToChars(file_names(i))])';
     event_array{i} = ft_read_event([datadir,convertStringsToChars(file_names(i))])';
 end
-
 %% save things for easy access
 blk = 1;
 channel = 'A3';
@@ -144,7 +143,8 @@ for i=1:length(detrended_data)
     disp('starting detrending...')
     [y,w] = nt_detrend(data_array{i},ord,w,[],[],[],10*2048);
     detrended_data{i} = y/(10^6);  % fix units for mne
-    detrended_data{i}(:,273) = data_array{i}(:,273); % restore trigger channel
     disp('done.')
 end
+disp('saving...')
 save('S:\Lab-Shared\Experiments\HighDenseGamma\Analyses\Python\DensegridPreprocessing\RawFiles\S3\detrended_aud_s3.mat','detrended_data','-v7.3')
+disp('done.')

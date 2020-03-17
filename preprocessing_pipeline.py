@@ -36,21 +36,21 @@ eog_map_dict = {'Nose': 'eog', 'LHEOG': 'eog', 'RHEOG': 'eog', 'RVEOGS': 'eog', 
 raw.set_channel_types(mapping=eog_map_dict)
 # %%
 # reject bad intervals** - make sure its in the right place!
-reject_criteria = dict(eeg=150e-6, eog=300e-6)  # 150 μV
+reject_criteria = dict(eeg=250e-6, eog=300e-6)  # 150 μV
 rej_step = .1  # in seconds
 
 # fit ica
 # %%
 ica = mne.preprocessing.ICA(n_components=.90, random_state=97, max_iter=800)
 # ica.fit(raw, reject_by_annotation=True, reject=reject_criteria)
-ica.fit(raw, reject_by_annotation=True)
-ica.save('visual-detrended-s2-ica.fif')
+ica.fit(epochs, reject_by_annotation=True)
+ica.save('SavedResults/S3/visual-detrended-s3-ica.fif')
 #raw.save('visual-detrended-s2-rejected100-raw.fif')
 
 # %%
 ica = mne.preprocessing.read_ica(input())
 # checking components is in running_script.py
-ica.exclude = [59,20,16,12,11,1]
+ica.exclude = [2,10]
 
 # find which ICs match the EOG pattern
 
@@ -89,17 +89,17 @@ ica.apply(raw)
 # SHORT_BODY_STIM_OFFSET_CODE = 17
 # LONG_BODY_STIM_OFFSET_CODE = 27
 
-events = mne.find_events(raw, stim_channel="Status", mask=255)
+events = mne.find_events(raw, stim_channel="Status", mask=255,min_duration=2/2048)
 event_dict_aud = {'short_word': 12, 'long_word': 22}
 event_dict_vis = {'short_face': 10, 'long_face': 20,
                   'short_anim': 12, 'long_anim': 22,
-                  'short_obj': 14, 'long_obj': 24}  # ,
-#                  'short_body': 16, 'long_body': 26}
+                  'short_obj': 14, 'long_obj': 24,
+                  'short_body': 16, 'long_body': 26}
 raw.notch_filter([50, 100, 150])  # notch filter
 # raw_filt = raw.copy().filter(l_freq=1, h_freq=30)  # performing fikltering on copy of raw data, not on raw itself or epochs
 # epoch raw data without filtering for TF analysis
 epochs = mne.Epochs(raw, events, event_id=event_dict_vis,
-                    tmin=-0.4, tmax=1.9, baseline=None,
+                    tmin=-0.4, tmax=1.9, baseline=(-0.25, -0.1),
                     reject=reject_criteria,
                     reject_tmin=-.1, reject_tmax=1.5,  # reject based on 100 ms before trial onset and 1500 after
                     preload=True, reject_by_annotation=True)
