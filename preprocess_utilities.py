@@ -157,7 +157,7 @@ def plot_correlations(ica, raw, components,
     df_ica = DataFrame(data_ica)
     corr_matrix = df.corr().filter(df_electrodes.columns, axis=1).filter(df_ica.columns, axis=0)
     # sn.set_palette(sn.color_palette('RdBu_r',11))
-    sn.heatmap(corr_matrix, annot=True)  # cmap=sn.color_palette('RdBu_r', 11)
+    sn.heatmap(corr_matrix, annot=True,vmin=-1, vmax=1)  # cmap=sn.color_palette('RdBu_r', 11)
     # ('red', 'green', 'blue', 'purple', 'gold', 'silver', 'black', 'brown')
     ica_raw.plot_psd(fmin=0, fmax=250, picks=components, n_fft=10 * 2048, show=False, spatial_colors=False)
 

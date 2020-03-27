@@ -16,6 +16,8 @@ if __name__ == "__main__":
     root.destroy()
     raw.load_data()
     raw.set_montage(montage=mne.channels.make_standard_montage('biosemi256', head_size=0.089), raise_if_subset=False)
+    raw.set_eeg_reference(ref_channels=['M1', 'M2'])
+
     print("plotting psd...")
     eog_map_dict = {'Nose': 'eeg', 'LHEOG': 'eeg', 'RHEOG': 'eeg', 'RVEOGS': 'eeg', 'RVEOGI': 'eeg', 'M1': 'eeg',
                     'M2': 'eeg', 'LVEOGI': 'eeg'}
@@ -32,20 +34,21 @@ if __name__ == "__main__":
                       'short_anim': 12, 'long_anim': 22,
                       'short_obj': 14, 'long_obj': 24}  # ,
     #                  'short_body': 16, 'long_body': 26}
-    epochs = mne.Epochs(raw, mne.find_events(raw, stim_channel="Status", mask=255), event_id=event_dict_vis, tmin=-0.2,
-                        tmax=1.6,
-                        reject=dict(eeg=250e-6), preload=True, reject_by_annotation=True)
+    event_dict_aud = {'short_word': 12, 'long_word': 22}
+    epochs = mne.Epochs(raw, mne.find_events(raw, stim_channel="Status", mask=255), event_id=event_dict_vis, tmin=-0.3,
+                        tmax=1.9,
+                        reject=dict(eeg=300e-6), preload=True, reject_by_annotation=True)
 
     print("plotting properties...")
     # the beginning of each components group to be shown
     comp_jumps = np.linspace(0, ica.n_components_, int(ica.n_components_ / 8) + 1)
     for i in range(len(comp_jumps)):  # go over the components and show 8 each time
-        comps = range(int(comp_jumps[i + 7]), int(comp_jumps[i + 8]))
+        comps = range(int(comp_jumps[i ]), int(comp_jumps[i + 1]))
         print("plotting from component " + str(comps))
         plot_correlations(ica, raw, components=comps,
                           picks=['A19', 'Nose', 'RHEOG', 'LHEOG', 'RVEOGS', 'RVEOGI', 'M1', 'M2', 'LVEOGI'])
 
-        ica.plot_properties(epochs, picks=comps, show=False)  # plot component properties
+        ica.plot_properties(epochs, picks=comps, show=False, psd_args={'fmax': 100})  # plot component properties
         ica.plot_sources(raw, picks=comps, show=False)  # plot sources
         print("plotting")
         plt.show()

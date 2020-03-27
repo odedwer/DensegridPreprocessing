@@ -1,7 +1,7 @@
 %% load all of the auditory data
 ft_defaults
-datadir='S:/Lab-Shared/Experiments/HighDenseGamma/results/EEG/Visual/Raw/';
-file_names = ["vis_s2_2.bdf","vis_s2_3.bdf","vis_s2_4.bdf","vis_s2_5.bdf"];
+datadir='S:/Lab-Shared/Experiments/HighDenseGamma/results/EEG/Auditory/Raw/';
+file_names = ["aud_s3_1.bdf","aud_s3_2.bdf","aud_s3_3.bdf"];
 savedir=[];%'./PP/'; % directory to save results
 data_array = cell(size(file_names));
 header_array = cell(size(file_names));
@@ -143,7 +143,8 @@ for i=1:length(detrended_data)
     w(onsets+window)=0;
     disp('starting detrending...')
     [y,w] = nt_detrend(data_array{i},ord,w,[],[],[],10*2048);
-    detrended_data{i} = y/(10^6);
+    detrended_data{i} = y/(10^6);  % fix units for mne
+    detrended_data{i}(:,273) = data_array{i}(:,273); % restore trigger channel
     disp('done.')
 end
-save('detrended_vis_s2.mat','detrended_data','-v7.3')
+save('S:\Lab-Shared\Experiments\HighDenseGamma\Analyses\Python\DensegridPreprocessing\RawFiles\S3\detrended_aud_s3.mat','detrended_data','-v7.3')
