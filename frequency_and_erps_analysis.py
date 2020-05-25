@@ -72,7 +72,7 @@ gc.collect()
 # %% # time frequency analysis - high freqs tfrs
 
 # %%
-power = mne.time_frequency.read_tfrs("SavedResults/S3/S3_vis_detrended_ord10_10s_windows_long_trials_high_freq-pow.fif")
+power = mne.time_frequency.read_tfrs("SavedResults/S3/S3_vis_detrended_ord10_10s_windows_short_trials_high_freq-pow.fif")
 power=power[0].average() # get onlyaverage induced response
 power.plot_topo(baseline=base_correction, mode=correction_mode, title='Average power',
                        tmin=-0.3, tmax=1.8,vmin=-.25, vmax=.25, layout_scale=.5 )
@@ -82,31 +82,31 @@ power.plot_topo(baseline=base_correction, mode=correction_mode, title='Average p
 raw_hilb = []
 nbands = 4  # starting from 60, jumping by 20
 for i in range(4):
-    curr_l_freq = (i + 1) * 20 + 40
+    curr_l_freq = (i + 1) * 20 + 30
     curr_h_freq = curr_l_freq + 20
-    raw_bp = raw.copy().filter(l_freq=curr_l_freq, h_freq=curr_h_freq, method='iir',
-                               iir_params=dict(order=3, ftype='butter'))
-    raw_hilb.append(raw_bp.apply_hilbert(envelope=True), base=10)  # compute envelope of analytic signal
-    raw_hilb[i]._data[:] = 10 * np.log(raw_bp._data ** 2, base=10)  # change to dB
-    raw_hilb[i] = raw_hilb[i]._data[:] - raw_hilb[i]._data[:].mean(1)  # demean to apply correction
+        raw_bp = raw.copy().filter(l_freq=curr_l_freq, h_freq=curr_h_freq, method='iir',
+                                   iir_params=dict(order=3, ftype='butter'))
+    raw_hilb.append(raw_bp.apply_hilbert(envelope=True))  # compute envelope of analytic signal
+    raw_hilb[i]._data[:] = 10 * np.log10(raw_hilb[i]._data[:] ** 2)  # change to dB
+    raw_hilb[i]._data = raw_hilb[i]._data[:] - np.reshape(raw_hilb[i]._data[:].mean(1),(raw_hilb[i].info['nchan'],1))
+    # demean to apply correction
     print("finished band of " + str(curr_l_freq) + " - " + str(curr_h_freq))
 
-## compute mean of all filter bands
-raw_hilb[0]._data = (raw_hilb[0]._data + raw_hilb[1]._data + raw_hilb[2]._data + raw_hilb[3]._data) / nbands
+##  compute mean of all filter bands
+raw_hilb[4]._data = (raw_hilb[0]._data + raw_hilb[1]._data + raw_hilb[2]._data + raw_hilb[3]._data) / nbands
 epochs_hilb = mne.Epochs(raw_hilb[0], events, event_id=event_dict_vis,
                          tmin=-0.4, tmax=1.9, baseline=None,
-                         reject=reject_criteria,
                          reject_tmin=-.1, reject_tmax=1.5,  # reject based on 100 ms before trial onset and 1500 after
                          preload=True, reject_by_annotation=True)
-del raw_hilb
+#del raw_hilb
 # apply hilbert
 epochs_hilb.apply_baseline((-.3, -.1), verbose=True)
 
 # %% show ERP after hilbert
-check_electrode = "B8"
+check_electrode = "B6"
 epochs_hilb['short_anim', 'short_obj', 'short_face', 'short_body'].plot_image(picks=[check_electrode])
 
-# # %%
+# %%
 # power_list = []
 # # widths = [0.2, 0.4]
 # widths = [0.2]

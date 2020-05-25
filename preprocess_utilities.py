@@ -161,6 +161,30 @@ def plot_correlations(ica, raw, components,
     # ('red', 'green', 'blue', 'purple', 'gold', 'silver', 'black', 'brown')
     ica_raw.plot_psd(fmin=0, fmax=250, picks=components, n_fft=10 * 2048, show=False, spatial_colors=False)
 
+def annotate_bads_auto(raw, reject_criteria):
+    """
+    reads raw object and annotates automaticaly by threshold criteria - lower or higher than value.
+    suprathresholda areas are rejected - 50 ms to each side of event
+    returns the annotated raw object and print times anottated
+    :param raw: raw object
+    :param reject_criteria: dict
+    :return: annotated raw object
+    """
+    data = raw.get_data(picks='eeg')  # matrix size n_channels X samples
+    event_times = raw._times[sum(abs(data)>reject_criteria) == 1] #collect all times of rejections
+    extralist=[]
+    for i in range(2,len(event_times)):  # don't remove adjacent time points
+        if (event_times[i] - event_times[i-1])<.05:
+            extralist.append(i)
+    event_times = np.delete(event_times,extralist)
+    onsets = event_times - 0.05
+    print("100 ms of data rejected in times:\n",onsets)
+    durations = [0.1] * len(event_times)
+    descriptions = ['BAD_data'] * len(event_times)
+    annot = mne.Annotations(onsets, durations, descriptions,
+                                  orig_time=raw.info['meas_date'])
+    raw.set_annotations(annot)
+    return raw
 
 def annotate_breaks(raw, trig=254, samp_rate=2048):
     """

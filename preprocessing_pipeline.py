@@ -8,17 +8,26 @@ matplotlib.use('Qt5Agg')
 # %%
 # upload raw files AFTER robust detrending
 raws = read_bdf_files(preload=True)
-# detrended_raws = load_raws_from_mat('detrended_ord10_10s_window.mat', raws)
 # concatenate to one raw file
 raw = mne.concatenate_raws(raws)
 copy_raw = raw.copy()  # make a copy before adding the new channel
-
+raw.filter(h_freq=None, l_freq=1)
 # %% in case of existing raw file, like detrended:
 raw = mne.io.read_raw_fif(input("Hello!\nEnter raw data file: "))
 raw.load_data()
 
-# %% drop bad channels, annotate breaks
-raw.plot(n_channels=32, duration=30)  #to see data and mark bad channels and segments
+# %%
+eog_map_dict = {'Nose': 'eog', 'LHEOG': 'eog', 'RHEOG': 'eog', 'RVEOGS': 'eog', 'RVEOGI': 'eog', 'M1': 'eog',
+                'M2': 'eog', 'LVEOGI': 'eog'}
+raw.set_channel_types(mapping=eog_map_dict)
+# %% drop bad channels, annotate bad intervals
+raw.filter(h_freq=None, l_freq=1)
+
+raw = annotate_bads_auto(raw, reject_criteria=200e-6)
+#%% plot again to see annotations
+raw.plot(n_channels=130, duration=30)  #to see data and mark bad channels and segments
+#%%
+print("total time annotated as bad: ", round(sum(raw._annotations.duration),2))
 #%%
 if input("auditory? (Y/N)") == 'Y':
     raw = annotate_breaks(raw)  # only for auditory
@@ -30,22 +39,18 @@ raw.drop_channels(['Ana' + str(i) for i in range(1, 9)])
 raw.set_montage(montage=mne.channels.read_custom_montage("SavedResults/S2/S2.elc"), raise_if_subset=False)
 raw.set_eeg_reference()
 
-# %%
-eog_map_dict = {'Nose': 'eog', 'LHEOG': 'eog', 'RHEOG': 'eog', 'RVEOGS': 'eog', 'RVEOGI': 'eog', 'M1': 'eog',
-                'M2': 'eog', 'LVEOGI': 'eog'}
-raw.set_channel_types(mapping=eog_map_dict)
+
 # %%
 # reject bad intervals** - make sure its in the right place!
-reject_criteria = dict(eeg=250e-6, eog=300e-6)  # 150 μV
+reject_criteria = dict(eeg=200e-6, eog=300e-6)  # 150 μV
 rej_step = .1  # in seconds
 
 # fit ica
 # %%
 ica = mne.preprocessing.ICA(n_components=.90, random_state=97, max_iter=800)
 # ica.fit(raw, reject_by_annotation=True, reject=reject_criteria)
-ica.fit(epochs, reject_by_annotation=True)
-ica.save('SavedResults/S3/visual-detrended-s3-ica.fif')
-#raw.save('visual-detrended-s2-rejected100-raw.fif')
+ica.fit(raw, reject_by_annotation=True)
+ica.save("SavedResults/S3/ICA_for_leon/aud-s2-1hpf-NOBADS-ica.fif")#raw.save('visual-detrended-s2-rejected100-raw.fif')
 
 # %%
 ica = mne.preprocessing.read_ica(input())
@@ -98,7 +103,7 @@ event_dict_vis = {'short_face': 10, 'long_face': 20,
 raw.notch_filter([50, 100, 150])  # notch filter
 # raw_filt = raw.copy().filter(l_freq=1, h_freq=30)  # performing fikltering on copy of raw data, not on raw itself or epochs
 # epoch raw data without filtering for TF analysis
-epochs = mne.Epochs(raw, events, event_id=event_dict_vis,
+epochs = mne.Epochs(raw, events, event_id=event_dict_aud,
                     tmin=-0.4, tmax=1.9, baseline=(-0.25, -0.1),
                     reject=reject_criteria,
                     reject_tmin=-.1, reject_tmax=1.5,  # reject based on 100 ms before trial onset and 1500 after
