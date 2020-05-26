@@ -66,6 +66,22 @@ def read_bdf_files(preload=True):
     return ret
 
 
+def set_reg_eog(raw, add_channels=[]):
+    """
+    :param raw: the raw input we want to set eog channels in
+    :param add_channels: names of channels we would like to add
+    :return: raw file with eog channels marked
+    """
+    ana_map_dict = {}
+    eog_map_dict = {'Nose': 'eog', 'LHEOG': 'eog', 'RHEOG': 'eog', 'RVEOGS': 'eog', 'RVEOGI': 'eog', 'M1': 'eog',
+                    'M2': 'eog', 'LVEOGI': 'eog'}
+    if len(add_channels) > 0:
+        for i in add_channels:
+            eog_map_dict[i] = 'eog'
+    raw.set_channel_types(mapping=eog_map_dict)
+    return raw
+
+
 def add_bipolar_derivation(raw, ch_1, ch_2):
     """
     adds a channel to the given raw instance that is ch_1-ch_2
@@ -157,34 +173,75 @@ def plot_correlations(ica, raw, components,
     df_ica = DataFrame(data_ica)
     corr_matrix = df.corr().filter(df_electrodes.columns, axis=1).filter(df_ica.columns, axis=0)
     # sn.set_palette(sn.color_palette('RdBu_r',11))
-    sn.heatmap(corr_matrix, annot=True,vmin=-1, vmax=1)  # cmap=sn.color_palette('RdBu_r', 11)
+    sn.heatmap(corr_matrix, annot=True, vmin=-1, vmax=1)  # cmap=sn.color_palette('RdBu_r', 11)
     # ('red', 'green', 'blue', 'purple', 'gold', 'silver', 'black', 'brown')
     ica_raw.plot_psd(fmin=0, fmax=250, picks=components, n_fft=10 * 2048, show=False, spatial_colors=False)
 
-def annotate_bads_auto(raw, reject_criteria):
+
+def plot_all_channels_var(raw, max_val, threshold, remove_from_top=8):
     """
-    reads raw object and annotates automaticaly by threshold criteria - lower or higher than value.
-    suprathresholda areas are rejected - 50 ms to each side of event
-    returns the annotated raw object and print times anottated
+    plotting the variance by channel for selecting bad channels
+    :param raw: raw file
+    :param threshold: color line in this number
+    :param max_val: if any of the variances is larger than this value, reduce it for visualization. in case of extreme values
+    :param remove_from_top: number of channels to remove from the last one. default is 16 to not include analog and face channels
+    """
+    channs = range(len(raw.ch_names) - remove_from_top-1)
+    data = raw.get_data(picks=channs)
+    var_vec = np.array([data[i,].var() for i in channs])
+    var_vec[var_vec > max_val] = max_val  # for visualiztions
+    electrode_letter = [i[0] for i in raw.ch_names[0:(len(channs))]]
+    for i in channs:  # print names of noisy electrodes
+        if var_vec[i] > threshold:
+            print(raw.ch_names[i])
+    colors = {'A': 'brown', 'B': 'red',
+              'C': 'orange', 'D': 'gold',
+              'E': 'green', 'F': 'blue',
+              'G': 'pink', 'H': 'black'}
+    plt.bar(x=raw.ch_names[0:(len(channs))], height=var_vec, color=[colors[i] for i in electrode_letter])
+    plt.axhline(y=threshold,color='grey')
+    plt.show()
+
+
+def annotate_bads_auto(raw, reject_criteria, reject_criteria_blink=200e-6):
+    """
+    reads raw object and annotates automatically by threshold criteria - lower or higher than value.
+    supra-threshold areas are rejected - 50 ms to each side of event
+    returns the annotated raw object and print times annotated
     :param raw: raw object
-    :param reject_criteria: dict
+    :param reject_criteria: number
+    :param reject_criteria_blink: number, mark blinks in order to not reject them by mistake
     :return: annotated raw object
     """
+    #from ..epochs import _is_good
+
     data = raw.get_data(picks='eeg')  # matrix size n_channels X samples
-    event_times = raw._times[sum(abs(data)>reject_criteria) == 1] #collect all times of rejections
-    extralist=[]
-    for i in range(2,len(event_times)):  # don't remove adjacent time points
-        if (event_times[i] - event_times[i-1])<.05:
+    del_arr = [raw.ch_names.index(i) for i in raw.info['bads']]
+    data = np.delete(data, del_arr, 0)  # don't check bad channels
+    # reject by threshold
+    event_times = raw._times[ (sum(abs(data) > reject_criteria) == 1) &\
+                              ((raw._times > 0.1) &\
+                               (raw._times < max(raw._times) - 0.1))]  # collect all times of rejections except first and last 100ms
+    ## ADD TO EVENT TIMES EVENTS WHERE THE DIFFERENCE BETWEEN ADJACENT TIMEPOINTS IS VERY LARGE
+    jumps = sum(abs(np.diff(data)) > ????) > 0
+    extralist = []
+    data_eog = raw.get_data(picks='eog')
+    eye_events = raw._times[sum(abs(data_eog) > reject_criteria_blink) > 0]
+    for i in range(2, len(event_times)):  # don't remove adjacent time points or blinks
+        if ((event_times[i] - event_times[i - 1]) < .05) |\
+                (sum(abs(event_times[i] - eye_events)<.3) > 0): ## if a blink occured 300ms before or after
             extralist.append(i)
-    event_times = np.delete(event_times,extralist)
+    print(extralist)
+    event_times = np.delete(event_times, extralist)
     onsets = event_times - 0.05
-    print("100 ms of data rejected in times:\n",onsets)
+    print("100 ms of data rejected in times:\n", onsets)
     durations = [0.1] * len(event_times)
     descriptions = ['BAD_data'] * len(event_times)
     annot = mne.Annotations(onsets, durations, descriptions,
-                                  orig_time=raw.info['meas_date'])
+                            orig_time=raw.info['meas_date'])
     raw.set_annotations(annot)
     return raw
+
 
 def annotate_breaks(raw, trig=254, samp_rate=2048):
     """

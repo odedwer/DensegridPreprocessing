@@ -3,6 +3,7 @@
 import numpy as np
 from preprocess_utilities import *
 import matplotlib
+
 matplotlib.use('Qt5Agg')
 
 # %%
@@ -10,35 +11,33 @@ matplotlib.use('Qt5Agg')
 raws = read_bdf_files(preload=True)
 # concatenate to one raw file
 raw = mne.concatenate_raws(raws)
+raw.drop_channels(['Ana1', 'Ana2', 'Ana3', 'Ana4', 'Ana5', 'Ana6', 'Ana7', 'Ana8'])
 copy_raw = raw.copy()  # make a copy before adding the new channel
+
 raw.filter(h_freq=None, l_freq=1)
-# %% in case of existing raw file, like detrended:
-raw = mne.io.read_raw_fif(input("Hello!\nEnter raw data file: "))
-raw.load_data()
 
 # %%
-eog_map_dict = {'Nose': 'eog', 'LHEOG': 'eog', 'RHEOG': 'eog', 'RVEOGS': 'eog', 'RVEOGI': 'eog', 'M1': 'eog',
-                'M2': 'eog', 'LVEOGI': 'eog'}
-raw.set_channel_types(mapping=eog_map_dict)
+raw = set_reg_eog(raw)
 # %% drop bad channels, annotate bad intervals
-raw.filter(h_freq=None, l_freq=1)
+plot_all_channels_var(raw, max_val=1e-5, threshold=5e-10)  # max value for visualization in case of large value
 
-raw = annotate_bads_auto(raw, reject_criteria=200e-6)
-#%% plot again to see annotations
-raw.plot(n_channels=130, duration=30)  #to see data and mark bad channels and segments
-#%%
-print("total time annotated as bad: ", round(sum(raw._annotations.duration),2))
-#%%
+# %%
+raw = annotate_bads_auto(raw, reject_criteria=150e-6)
+# %% plot again to see annotations
+raw.plot(n_channels=30, duration=30)  # to see data and mark bad channels and segments
+
+# %%
+print("total time annotated as bad: ", round(sum(raw._annotations.duration), 2))
+# %%
 if input("auditory? (Y/N)") == 'Y':
     raw = annotate_breaks(raw)  # only for auditory
-#raw.drop_channels(["C26", "D3"])  # bridged/noisy channels we choose to remove ##n
+# raw.drop_channels(["C26", "D3"])  # bridged/noisy channels we choose to remove ##n
 raw.drop_channels(['Ana' + str(i) for i in range(1, 9)])
 
 # set the montage of the electrodes - position on head
 # %%
 raw.set_montage(montage=mne.channels.read_custom_montage("SavedResults/S2/S2.elc"), raise_if_subset=False)
 raw.set_eeg_reference()
-
 
 # %%
 # reject bad intervals** - make sure its in the right place!
@@ -50,12 +49,13 @@ rej_step = .1  # in seconds
 ica = mne.preprocessing.ICA(n_components=.90, random_state=97, max_iter=800)
 # ica.fit(raw, reject_by_annotation=True, reject=reject_criteria)
 ica.fit(raw, reject_by_annotation=True)
-ica.save("SavedResults/S3/ICA_for_leon/aud-s2-1hpf-NOBADS-ica.fif")#raw.save('visual-detrended-s2-rejected100-raw.fif')
+ica.save(
+    "SavedResults/S3/ICA_for_leon/aud-s2-1hpf-NOBADS-ica.fif")  # raw.save('visual-detrended-s2-rejected100-raw.fif')
 
 # %%
 ica = mne.preprocessing.read_ica(input())
 # checking components is in running_script.py
-ica.exclude = [2,10]
+ica.exclude = [2, 10]
 
 # find which ICs match the EOG pattern
 
@@ -69,7 +69,7 @@ eog_indices, eog_scores = ica.find_bads_eog(raw, ch_name="RVEOGS-RVEOGI")
 ica.plot_scores(eog_scores, title="Vertical eye correlations")
 
 # barplot of ICA component "EOG match" scores
-#%%
+# %%
 ica.apply(raw)
 
 # %% # epoch- set triggers dictionairy, find events, crate epoch objects - divided by triggers
@@ -94,7 +94,7 @@ ica.apply(raw)
 # SHORT_BODY_STIM_OFFSET_CODE = 17
 # LONG_BODY_STIM_OFFSET_CODE = 27
 
-events = mne.find_events(raw, stim_channel="Status", mask=255,min_duration=2/2048)
+events = mne.find_events(raw, stim_channel="Status", mask=255, min_duration=2 / 2048)
 event_dict_aud = {'short_word': 12, 'long_word': 22}
 event_dict_vis = {'short_face': 10, 'long_face': 20,
                   'short_anim': 12, 'long_anim': 22,
