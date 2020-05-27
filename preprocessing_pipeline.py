@@ -11,7 +11,7 @@ matplotlib.use('Qt5Agg')
 raws = read_bdf_files(preload=True)
 # concatenate to one raw file
 raw = mne.concatenate_raws(raws)
-raw.drop_channels(['Ana1', 'Ana2', 'Ana3', 'Ana4', 'Ana5', 'Ana6', 'Ana7', 'Ana8'])
+raw.drop_channels(['Ana' + str(i) for i in range(1, 9)])
 copy_raw = raw.copy()  # make a copy before adding the new channel
 
 raw.filter(h_freq=None, l_freq=1)
@@ -20,19 +20,18 @@ raw.filter(h_freq=None, l_freq=1)
 raw = set_reg_eog(raw)
 # %% drop bad channels, annotate bad intervals
 plot_all_channels_var(raw, max_val=1e-5, threshold=5e-10)  # max value for visualization in case of large value
+raw.plot(n_channels=30, duration=30)  # to see data and mark bad channels
 
 # %%
-raw = annotate_bads_auto(raw, reject_criteria=150e-6)
-# %% plot again to see annotations
-raw.plot(n_channels=30, duration=30)  # to see data and mark bad channels and segments
+raw = annotate_bads_auto(raw, reject_criteria=150e-6, jump_criteria=5e-5)
+# %% plot again to see annotations and mark missed noise/jumps
+raw.plot(n_channels=30, duration=30)  # to see data and mark bad  segments
 
 # %%
 print("total time annotated as bad: ", round(sum(raw._annotations.duration), 2))
 # %%
 if input("auditory? (Y/N)") == 'Y':
     raw = annotate_breaks(raw)  # only for auditory
-# raw.drop_channels(["C26", "D3"])  # bridged/noisy channels we choose to remove ##n
-raw.drop_channels(['Ana' + str(i) for i in range(1, 9)])
 
 # set the montage of the electrodes - position on head
 # %%
@@ -40,17 +39,15 @@ raw.set_montage(montage=mne.channels.read_custom_montage("SavedResults/S2/S2.elc
 raw.set_eeg_reference()
 
 # %%
-# reject bad intervals** - make sure its in the right place!
-reject_criteria = dict(eeg=200e-6, eog=300e-6)  # 150 μV
+# reject bad intervals based on pek to peak in ICA** - make sure its in the right place!
+reject_criteria = dict(eeg=200e-6, eeg=200e-5)  # 200 μV and only extremeeog events
 rej_step = .1  # in seconds
 
-# fit ica
-# %%
-ica = mne.preprocessing.ICA(n_components=.90, random_state=97, max_iter=800)
-# ica.fit(raw, reject_by_annotation=True, reject=reject_criteria)
-ica.fit(raw, reject_by_annotation=True)
+# %%fit ica
+ica = mne.preprocessing.ICA(n_components=.90, method='infomax', random_state=97, max_iter=800, fit_params=dict(extended=True))
+ica.fit(raw, reject_by_annotation=True, reject=reject_criteria)
 ica.save(
-    "SavedResults/S3/ICA_for_leon/aud-s2-1hpf-NOBADS-ica.fif")  # raw.save('visual-detrended-s2-rejected100-raw.fif')
+    "SavedResults/S"+input("subject number?")+"/"+input("name?")+"-ica.fif")  # raw.save('visual-detrended-s2-rejected100-raw.fif')
 
 # %%
 ica = mne.preprocessing.read_ica(input())

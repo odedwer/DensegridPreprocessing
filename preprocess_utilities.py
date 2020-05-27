@@ -186,7 +186,7 @@ def plot_all_channels_var(raw, max_val, threshold, remove_from_top=8):
     :param max_val: if any of the variances is larger than this value, reduce it for visualization. in case of extreme values
     :param remove_from_top: number of channels to remove from the last one. default is 16 to not include analog and face channels
     """
-    channs = range(len(raw.ch_names) - remove_from_top-1)
+    channs = range(len(raw.ch_names) - remove_from_top - 1)
     data = raw.get_data(picks=channs)
     var_vec = np.array([data[i,].var() for i in channs])
     var_vec[var_vec > max_val] = max_val  # for visualiztions
@@ -199,39 +199,45 @@ def plot_all_channels_var(raw, max_val, threshold, remove_from_top=8):
               'E': 'green', 'F': 'blue',
               'G': 'pink', 'H': 'black'}
     plt.bar(x=raw.ch_names[0:(len(channs))], height=var_vec, color=[colors[i] for i in electrode_letter])
-    plt.axhline(y=threshold,color='grey')
+    plt.axhline(y=threshold, color='grey')
+    plt.ylabel("Variance")
+    plt.xlabel("channel")
     plt.show()
 
 
-def annotate_bads_auto(raw, reject_criteria, reject_criteria_blink=200e-6):
+def annotate_bads_auto(raw, reject_criteria, jump_criteria, reject_criteria_blink=200e-6):
     """
     reads raw object and annotates automatically by threshold criteria - lower or higher than value.
+    Also reject big jumps.
     supra-threshold areas are rejected - 50 ms to each side of event
     returns the annotated raw object and print times annotated
+    :param jump_criteria: number - the minimum point to-point difference for rejection
     :param raw: raw object
-    :param reject_criteria: number
+    :param reject_criteria: number - threshold
     :param reject_criteria_blink: number, mark blinks in order to not reject them by mistake
     :return: annotated raw object
     """
-    #from ..epochs import _is_good
-
     data = raw.get_data(picks='eeg')  # matrix size n_channels X samples
     del_arr = [raw.ch_names.index(i) for i in raw.info['bads']]
     data = np.delete(data, del_arr, 0)  # don't check bad channels
-    # reject by threshold
-    event_times = raw._times[ (sum(abs(data) > reject_criteria) == 1) &\
-                              ((raw._times > 0.1) &\
-                               (raw._times < max(raw._times) - 0.1))]  # collect all times of rejections except first and last 100ms
-    ## ADD TO EVENT TIMES EVENTS WHERE THE DIFFERENCE BETWEEN ADJACENT TIMEPOINTS IS VERY LARGE
-    jumps = sum(abs(np.diff(data)) > ????) > 0
+    jumps = sum(abs(np.diff(data)) > jump_criteria) > 0  # mark large changes
+    jumps = np.append(jumps, False)  # fix length for comparing
+    # reject big jumps and threshold crossings, except the beggining and the end.
+    rejected_times = ((sum(abs(data) > reject_criteria) == 1) | jumps) & \
+                     ((raw._times > 0.1) & (raw._times < max(raw._times) - 0.1))
+    event_times = raw._times[rejected_times]  # collect all times of rejections except first and last 100ms
+    plt.plot(rejected_times)
+
     extralist = []
     data_eog = raw.get_data(picks='eog')
     eye_events = raw._times[sum(abs(data_eog) > reject_criteria_blink) > 0]
+    plt.plot(sum(abs(data_eog) > reject_criteria_blink) > 0)
+    plt.title("blue-annotations before deleting eye events. orange - only eye events")
+
     for i in range(2, len(event_times)):  # don't remove adjacent time points or blinks
-        if ((event_times[i] - event_times[i - 1]) < .05) |\
-                (sum(abs(event_times[i] - eye_events)<.3) > 0): ## if a blink occured 300ms before or after
+        if ((event_times[i] - event_times[i - 1]) < .05) | \
+                (sum(abs(event_times[i] - eye_events) < .3) > 0):  ## if a blink occured 300ms before or after
             extralist.append(i)
-    print(extralist)
     event_times = np.delete(event_times, extralist)
     onsets = event_times - 0.05
     print("100 ms of data rejected in times:\n", onsets)
@@ -258,3 +264,73 @@ def annotate_breaks(raw, trig=254, samp_rate=2048):
                      events[i][2] == trig]  ##2 seconds before next (real) trigger after 254
     raw._annotations = mne.Annotations(event_times, next_trig_dur, 'BAD')
     return raw
+
+
+def plot_ica_component(raw, ica, blink_times, saccade_times):
+    """
+    plot a component -
+    trial, saccade, blink evoked response
+    trial, saccade, blink time-frequency plots
+    Topography from 3 angles
+    Correlation with all eog channels
+    Time course of the component (and option to zoom in and out)
+    Component spectrum (psd)
+
+    :param saccade_times: vector in the length of eeg signal with 1 on each place of saccade onset
+    :param blink_times: vector in the length of eeg signal with 1 on each place of blink onset
+    :param raw: raw object
+    :param ica: saved ica object
+    :return:
+    """
+
+
+def ica_checker(raw, ica):
+    from tkinter.filedialog import askopenfilename
+    import matplotlib as mpl
+    mpl.use("tkAgg")
+    root = Tk()
+    root.withdraw()
+    raw = mne.io.read_raw_fif(askopenfilename(title="Please choose raw file"))
+    #    raw=mne.read_epochs("SavedResults/S2/det_epochs-epo.fif")
+    root.destroy()
+    raw.load_data()
+    raw.set_montage(montage=mne.channels.make_standard_montage('biosemi256', head_size=0.089), raise_if_subset=False)
+    raw.set_eeg_reference(ref_channels=['M1', 'M2'])
+
+    print("plotting psd...")
+    eog_map_dict = {'Nose': 'eeg', 'LHEOG': 'eeg', 'RHEOG': 'eeg', 'RVEOGS': 'eeg', 'RVEOGI': 'eeg', 'M1': 'eeg',
+                    'M2': 'eeg', 'LVEOGI': 'eeg'}
+    raw.set_channel_types(mapping=eog_map_dict)
+    # raw.plot_psd(fmin=0, fmax=25, picks=range(20), n_fft=10 * 2048)
+    # plt.show()
+    #    ica = mne.preprocessing.read_ica(askopenfilename(title="Please choose ICA file"))
+    ica = mne.preprocessing.read_ica(input("file?"))
+    # print("plotting components...")
+    # ica.plot_components(picks=components, show=False)
+    # plt.show()
+    print('creating epochs for plotting components...')
+
+    events = mne.find_events(raw, stim_channel="Status", mask=255, min_duration=2 / 2048)
+    event_dict_aud = {'short_word': 12, 'long_word': 22}
+    event_dict_vis = {'short_face': 10, 'long_face': 20,
+                      'short_anim': 12, 'long_anim': 22,
+                      'short_obj': 14, 'long_obj': 24,
+                      'short_body': 16, 'long_body': 26}
+    epochs = mne.Epochs(raw, events, event_id=event_dict_vis, tmin=-0.4, baseline=(-0.25, -.10),
+                        tmax=1.9, preload=True, reject_by_annotation=True)
+
+    print("plotting properties...")
+    # the beginning of each components group to be shown
+    comp_jumps = np.linspace(0, ica.n_components_, int(ica.n_components_ / 8) + 1)
+    for i in range(len(comp_jumps)):  # go over the components and show 8 each time
+        comps = range(int(comp_jumps[i]), int(comp_jumps[i + 1]))
+        print("plotting from component " + str(comps))
+        plot_correlations(ica, raw, components=comps,
+                          picks=['A19', 'Nose', 'RHEOG', 'LHEOG', 'RVEOGS', 'RVEOGI', 'M1', 'M2', 'LVEOGI'])
+
+        ica.plot_properties(epochs, picks=comps, show=False, psd_args={'fmax': 100})  # plot component properties
+        ica.plot_sources(epochs, picks=comps, show=False)  # plot sources
+        print("plotting")
+        plt.show()
+        if input("keep plotting? (Y/N)") == "N":
+            break
