@@ -1,9 +1,9 @@
 # %%
 import os
 import pickle
-from tkinter import Tk
+from tkinter import *
 from tkinter.filedialog import askopenfilename
-
+from datetime import datetime
 import numpy as np
 from pandas import DataFrame
 import pandas as pd
@@ -11,7 +11,7 @@ import seaborn as sn
 import matplotlib.pyplot as plt
 import mne
 from h5py import File
-
+from scipy import stats
 
 def save_data(obj, filename):
     """
@@ -266,7 +266,7 @@ def annotate_breaks(raw, trig=254, samp_rate=2048):
     return raw
 
 
-def plot_ica_component(raw, ica, blink_times, saccade_times):
+def plot_ica_component(raw, ica, events, event_dict,blink_times, saccade_times):
     """
     plot a component -
     trial, saccade, blink evoked response
@@ -282,6 +282,104 @@ def plot_ica_component(raw, ica, blink_times, saccade_times):
     :param ica: saved ica object
     :return:
     """
+    import matplotlib
+    #matplotlib.use('TkAgg', warn=False, force=True)
+    import matplotlib.pyplot as plt
+    import numpy as np
+    from matplotlib.backends.backend_tkagg import (
+        FigureCanvasTkAgg, NavigationToolbar2Tk)
+    # Implement the default Matplotlib key bindings.
+    from matplotlib.backend_bases import key_press_handler
+
+    # Seperated out config of plot to just do it once
+    def config_plot():
+        fig, ax = plt.subplots()
+        #ax.set(xlabel='time (s)', ylabel='voltage (mV)',
+        #       title='Graph One')
+        return (fig, ax)
+
+    class matplotlibSwitchGraphs:
+        def __init__(self, master, raw, ica):
+            self.master = master
+            self.raw = raw
+            self.ica = ica
+            self.frame = Frame(self.master)
+            self.fig, self.ax = config_plot()
+            self.graphIndex = 0
+            self.maxIndex = 7
+            self.canvas = FigureCanvasTkAgg(self.fig, self.master)
+            self.config_window()
+            self.draw_graph(self.graphIndex)
+            self.frame.pack(expand=YES, fill=BOTH)
+
+        def config_window(self):
+            self.canvas.mpl_connect("key_press_event", self.on_key_press)
+            toolbar = NavigationToolbar2Tk(self.canvas, self.master)
+            toolbar.update()
+            self.canvas.get_tk_widget().pack(side=TOP, fill=BOTH, expand=1)
+            self.button = Button(self.master, text="Quit", command=self._quit)
+            self.button.pack(side=BOTTOM)
+            self.button_switch_up = Button(self.master, text="->", command=self.move_up)
+            self.button_switch_up.pack(side=RIGHT)
+            self.button_switch_down = Button(self.master, text="<-", command=self.move_down)
+            self.button_switch_down.pack(side=LEFT)
+
+        def draw_graph(self, index):
+            ica_raw: mne.io.Raw = self.ica.get_sources(self.raw)
+            data_ica = ica_raw.get_data(picks=index)
+            now = datetime.now()
+            self.fig, self.ax = config_plot()
+
+            self.ax.clear()  # clear current axes
+            self.fig, self.ax = plt.subplots(2, 3)
+            self.fig.suptitle("Component "+str(index)+" - zoom in subplots for detail", fontsize=12)
+            #self.ax[0, 0].plot(data_ica)
+            #self.ax[0, 0].set_xlim([0, 10*ica_raw.info['sfreq']])
+            set_type = {i: 'eeg' for i in ica_raw.ch_names}  # setting ica_raw
+            ica_raw.set_channel_types(mapping=set_type)
+            evoked = mne.Epochs(ica_raw, events, event_id=event_dict,
+                    tmin=-0.4, tmax=1.9, baseline=(-0.25, -0.1),
+                    reject_tmin=-.1, reject_tmax=1.5,  # reject based on 100 ms before trial onset and 1500 after
+                    preload=True, reject_by_annotation=True)
+            evoked_data = evoked.average(index).data
+            self.ax[0, 0].plot((np.arange(len(evoked_data[0, :]))/evoked.info['sfreq']-0.4), evoked_data[0, :])
+            self.ax[0, 0].axhline(0, linestyle="--", color="grey", linewidth=.6)
+            self.ax[0, 0].set_title('Component ERP')
+            self.ax[0, 0].set_ylim(-1.5,2)
+            correls = [np.corrcoef(data_ica, raw._data[i])[0,1] for i in range(len(self.raw.ch_names))]
+            self.ax[1, 0].bar(x=raw.ch_names, height=correls, color='purple')
+            self.ax[1, 0].set_title('Electrode correlation)')
+            #self.ax[1, 0].plot()
+            #self.ax[1, 0].set_title('Axis [1, 0]')
+            #self.ax[1, 1].plot()
+            #self.ax[1, 1].set_title('Axis [1, 1]')
+            #self.ax.set(title="component " + str(index))
+            self.canvas.draw()
+            print("darwing graph took ", datetime.now()-now)
+
+        def on_key_press(event):
+            print("you pressed {}".format(event.key))
+            key_press_handler(event, self.canvas, toolbar)
+
+        def _quit(self):
+            self.master.quit()  # stops mainloop
+
+        def move_up(self):
+            # Need to call the correct draw, whether we're on graph one or two
+            self.graphIndex = (self.graphIndex + 1)
+            if self.graphIndex > self.maxIndex:
+                self.graphIndex = self.maxIndex
+            self.draw_graph(self.graphIndex)
+
+        def move_down(self):
+            # Need to call the correct draw, whether we're on graph one or two
+            self.graphIndex = (self.graphIndex - 1)
+            if self.graphIndex < 0:
+                self.graphIndex = 0
+            self.draw_graph(self.graphIndex)
+    root = Tk()
+    matplotlibSwitchGraphs(root,raw,ica)
+    root.mainloop()
 
 
 def ica_checker(raw, ica):

@@ -37,7 +37,7 @@ class matplotlibSwitchGraphs:
         self.maxIndex = 7
         self.canvas = FigureCanvasTkAgg(self.fig, self.master)
         self.config_window()
-        self.draw_graph(index)
+        self.draw_graph(self.graphIndex)
         self.frame.pack(expand=YES, fill=BOTH)
 
     def config_window(self):
@@ -47,45 +47,37 @@ class matplotlibSwitchGraphs:
         self.canvas.get_tk_widget().pack(side=TOP, fill=BOTH, expand=1)
         self.button = Button(self.master, text="Quit", command=self._quit)
         self.button.pack(side=BOTTOM)
-        self.button_switch = Button(self.master, text="->", command=self.move_up)
-        self.button_switch = Button(self.master, text="<-", command=self.move_down)
-        self.button_switch.pack(side=BOTTOM)
-
+        self.button_switch_up = Button(self.master, text="->", command=self.move_up)
+        self.button_switch_up.pack(side=RIGHT)
+        self.button_switch_down = Button(self.master, text="<-", command=self.move_down)
+        self.button_switch_down.pack(side=LEFT)
     def draw_graph(self, index):
         t = np.arange(0.0, 2.0, 0.01)
         s = 1 + np.sin(index * np.pi * t)
         self.ax.clear()  # clear current axes
         self.ax.plot(t, s)
-        self.ax.set(title='component' + index)
+        self.ax.set(title="component " + str(index))
         self.canvas.draw()
-
     def on_key_press(event):
         print("you pressed {}".format(event.key))
         key_press_handler(event, self.canvas, toolbar)
-
     def _quit(self):
         self.master.quit()  # stops mainloop
-
     def move_up(self):
         # Need to call the correct draw, whether we're on graph one or two
         self.graphIndex = (self.graphIndex + 1)
         if self.graphIndex > self.maxIndex:
             self.graphIndex = self.maxIndex
-        self.draw_graph(graphIndex)
-
+        self.draw_graph(self.graphIndex)
     def move_down(self):
         # Need to call the correct draw, whether we're on graph one or two
         self.graphIndex = (self.graphIndex - 1)
         if self.graphIndex < 0:
             self.graphIndex = 0
-        self.draw_graph(graphIndex)
+        self.draw_graph(self.graphIndex)
 
 
-def main():
-    root = Tk()
-    matplotlibSwitchGraphs(root)
-    root.mainloop()
+root = Tk()
+matplotlibSwitchGraphs(root)
+root.mainloop()
 
-
-if __name__ == '__main__':
-    main()
