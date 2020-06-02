@@ -266,7 +266,7 @@ def annotate_breaks(raw, trig=254, samp_rate=2048):
     return raw
 
 
-def plot_ica_component(raw, ica, events, event_dict,blink_times, saccade_times):
+def plot_ica_component(raw, ica, events, event_dict,stimuli):
     """
     plot a component -
     trial, saccade, blink evoked response
@@ -299,8 +299,9 @@ def plot_ica_component(raw, ica, events, event_dict,blink_times, saccade_times):
         return (fig, ax)
 
     class matplotlibSwitchGraphs:
-        def __init__(self, master, raw, ica):
+        def __init__(self, master, raw, ica, epochs):
             self.master = master
+            self.stimuli = stimuli
             self.raw = raw
             self.ica = ica
             self.frame = Frame(self.master)
@@ -311,6 +312,7 @@ def plot_ica_component(raw, ica, events, event_dict,blink_times, saccade_times):
             self.config_window()
             self.draw_graph(self.graphIndex)
             self.frame.pack(expand=YES, fill=BOTH)
+            self.epochs = epochs
 
         def config_window(self):
             self.canvas.mpl_connect("key_press_event", self.on_key_press)
@@ -328,34 +330,46 @@ def plot_ica_component(raw, ica, events, event_dict,blink_times, saccade_times):
             ica_raw: mne.io.Raw = self.ica.get_sources(self.raw)
             data_ica = ica_raw.get_data(picks=index)
             now = datetime.now()
+            set_type = {i: 'eeg' for i in ica_raw.ch_names}  # setting ica_raw
+            ica_raw.set_channel_types(mapping=set_type)
+            self.ica.plot_properties(epochs[stimuli], picks=index, show=False, psd_args={'fmax': 100})  # plot component properties
             self.fig, self.ax = config_plot()
-
             self.ax.clear()  # clear current axes
             self.fig, self.ax = plt.subplots(2, 3)
             self.fig.suptitle("Component "+str(index)+" - zoom in subplots for detail", fontsize=12)
             #self.ax[0, 0].plot(data_ica)
             #self.ax[0, 0].set_xlim([0, 10*ica_raw.info['sfreq']])
-            set_type = {i: 'eeg' for i in ica_raw.ch_names}  # setting ica_raw
-            ica_raw.set_channel_types(mapping=set_type)
-            evoked = mne.Epochs(ica_raw, events, event_id=event_dict,
-                    tmin=-0.4, tmax=1.9, baseline=(-0.25, -0.1),
-                    reject_tmin=-.1, reject_tmax=1.5,  # reject based on 100 ms before trial onset and 1500 after
-                    preload=True, reject_by_annotation=True)
-            evoked_data = evoked.average(index).data
-            self.ax[0, 0].plot((np.arange(len(evoked_data[0, :]))/evoked.info['sfreq']-0.4), evoked_data[0, :])
+            epochs_ica = mne.Epochs(ica_raw, events, event_id=event_dict,
+                                tmin=-0.4, tmax=1.9, baseline=(-0.25, -0.1),
+                                reject_tmin=-.1, reject_tmax=1.5,
+                                # reject based on 100 ms before trial onset and 1500 after
+                                preload=True, reject_by_annotation=True)
+            evoked = epochs_ica.average(picks=index)
+            evoked_saccade = epochs_ica.average(index).data
+            self.ax[0, 0].plot((np.arange(len(evoked_saccade[0, :]))/evoked.info['sfreq']-0.4), evoked_saccade[0, :])
             self.ax[0, 0].axhline(0, linestyle="--", color="grey", linewidth=.6)
-            self.ax[0, 0].set_title('Component ERP')
-            self.ax[0, 0].set_ylim(-1.5,2)
+            self.ax[0, 0].set_title('Saccade ERP')
+            self.ax[0, 0].set_ylim(-2,2)
+            self.ax[0, 0].set_ylabel('μV')
+
             correls = [np.corrcoef(data_ica, raw._data[i])[0,1] for i in range(len(self.raw.ch_names))]
             self.ax[1, 0].bar(x=raw.ch_names, height=correls, color='purple')
             self.ax[1, 0].set_title('Electrode correlation)')
+            self.ax[1, 0].set_ylabel('r')
+
+            evoked_blink = epochs_ica.average(index).data
+            self.ax[0, 1].plot((np.arange(len(evoked_blink[0, :]))/evoked.info['sfreq']-0.4), evoked_blink[0, :])
+            self.ax[0, 1].axhline(0, linestyle="--", color="grey", linewidth=.6)
+            self.ax[0, 1].set_title('Blink ERP')
+            self.ax[0, 1].set_ylabel('μV')
+            self.ax[0, 1].set_ylim(-2,2)
             #self.ax[1, 0].plot()
             #self.ax[1, 0].set_title('Axis [1, 0]')
             #self.ax[1, 1].plot()
             #self.ax[1, 1].set_title('Axis [1, 1]')
             #self.ax.set(title="component " + str(index))
             self.canvas.draw()
-            print("darwing graph took ", datetime.now()-now)
+            print("drawing graph took ", datetime.now()-now)
 
         def on_key_press(event):
             print("you pressed {}".format(event.key))
@@ -378,7 +392,11 @@ def plot_ica_component(raw, ica, events, event_dict,blink_times, saccade_times):
                 self.graphIndex = 0
             self.draw_graph(self.graphIndex)
     root = Tk()
-    matplotlibSwitchGraphs(root,raw,ica)
+    epochs = mne.Epochs(raw, events, event_id=event_dict,
+                        tmin=-0.4, tmax=1.9, baseline=(-0.25, -0.1),
+                        reject_tmin=-.1, reject_tmax=1.5,  # reject based on 100 ms before trial onset and 1500 after
+                        preload=True, reject_by_annotation=True)
+    matplotlibSwitchGraphs(root, raw, ica, epochs)
     root.mainloop()
 
 
