@@ -328,11 +328,13 @@ def plot_ica_component(raw, ica, events, event_dict,stimuli):
 
         def draw_graph(self, index):
             ica_raw: mne.io.Raw = self.ica.get_sources(self.raw)
-            data_ica = ica_raw.get_data(picks=index)
+            ica_raw = ica_raw.pick(index)
+            freqs = np.logspace(2.5, 7.6, 30, base=2) # for the TF plots
+            data_ica = ica_raw.get_data(picks=0)
             now = datetime.now()
             set_type = {i: 'eeg' for i in ica_raw.ch_names}  # setting ica_raw
             ica_raw.set_channel_types(mapping=set_type)
-            self.ica.plot_properties(epochs[stimuli], picks=index, show=False, psd_args={'fmax': 100})  # plot component properties
+            self.ica.plot_properties(epochs[stimuli], picks=0, show=False, psd_args={'fmax': 100})  # plot component properties
             self.fig, self.ax = config_plot()
             self.ax.clear()  # clear current axes
             self.fig, self.ax = plt.subplots(2, 3)
@@ -344,25 +346,47 @@ def plot_ica_component(raw, ica, events, event_dict,stimuli):
                                 reject_tmin=-.1, reject_tmax=1.5,
                                 # reject based on 100 ms before trial onset and 1500 after
                                 preload=True, reject_by_annotation=True)
-            evoked = epochs_ica.average(picks=index)
-            evoked_saccade = epochs_ica.average(index).data
-            self.ax[0, 0].plot((np.arange(len(evoked_saccade[0, :]))/evoked.info['sfreq']-0.4), evoked_saccade[0, :])
-            self.ax[0, 0].axhline(0, linestyle="--", color="grey", linewidth=.6)
-            self.ax[0, 0].set_title('Saccade ERP')
-            self.ax[0, 0].set_ylim(-2,2)
-            self.ax[0, 0].set_ylabel('μV')
+            evoked = epochs_ica.average(picks=0)
+            evoked_saccade = epochs_ica['long_face'].average(0).data
+            self.ax[0, 2].plot((np.arange(len(evoked_saccade[0, :])) / evoked.info['sfreq'] - 0.4),
+                               evoked_saccade[0, :])
+            self.ax[0, 2].axhline(0, linestyle="--", color="grey", linewidth=.6)
+            self.ax[0, 2].set_title('Saccade ERP')
+            self.ax[0, 2].set_ylim(-2, 2)
+            self.ax[0, 2].set_ylabel('μV')
 
-            correls = [np.corrcoef(data_ica, raw._data[i])[0,1] for i in range(len(self.raw.ch_names))]
+            correls = [np.corrcoef(data_ica, raw._data[i])[0, 1] for i in range(len(self.raw.ch_names))]
             self.ax[1, 0].bar(x=raw.ch_names, height=correls, color='purple')
             self.ax[1, 0].set_title('Electrode correlation)')
             self.ax[1, 0].set_ylabel('r')
 
-            evoked_blink = epochs_ica.average(index).data
-            self.ax[0, 1].plot((np.arange(len(evoked_blink[0, :]))/evoked.info['sfreq']-0.4), evoked_blink[0, :])
+            evoked_blink = epochs_ica['short_face'].average(0).data
+            self.ax[0, 1].plot((np.arange(len(evoked_blink[0, :])) / evoked.info['sfreq'] - 0.4), evoked_blink[0, :])
             self.ax[0, 1].axhline(0, linestyle="--", color="grey", linewidth=.6)
             self.ax[0, 1].set_title('Blink ERP')
             self.ax[0, 1].set_ylabel('μV')
-            self.ax[0, 1].set_ylim(-2,2)
+            self.ax[0, 1].set_ylim(-2, 2)
+
+            power_saccade = tfr_morlet(epochs_ica['long_face'], freqs=freqsH, average=False,
+                                      n_cycles=freqs / 10, use_fft=True,
+                                      return_itc=False, decim=3, n_jobs=12)
+            TFR = power_saccade.average().data
+            self.ax[1, 2].imshow((TFR[0]), cmap='jet', origin='lowest', aspect='auto')
+            self.ax[1, 2].set_title('Saccade-locked TF')
+            self.ax[1, 2].set_ylabel('Hz')
+            self.ax[1, 2].set_xlabel('Time (s)')
+
+
+
+            power_blink = tfr_morlet(epochs_ica['long_face'], freqs=freqsH, average=False,
+                                      n_cycles=freqs / 10, use_fft=True,
+                                      return_itc=False, decim=3, n_jobs=12)
+            TFR = power_blink.average().data
+            self.ax[1, 1].imshow((TFR[0]), cmap='jet', origin='lowest', aspect='auto')
+            self.ax[1, 1].set_title('Blink-locked TF')
+            self.ax[1, 1].set_ylabel('Hz')
+            self.ax[1, 1].set_xlabel('Time (s)')
+
             #self.ax[1, 0].plot()
             #self.ax[1, 0].set_title('Axis [1, 0]')
             #self.ax[1, 1].plot()

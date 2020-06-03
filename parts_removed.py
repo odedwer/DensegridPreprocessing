@@ -19,6 +19,7 @@ from matplotlib.backends.backend_tkagg import (
 # Implement the default Matplotlib key bindings.
 from matplotlib.backend_bases import key_press_handler
 
+plt.specgram
 
 # Seperated out config of plot to just do it once
 def config_plot():
