@@ -59,7 +59,7 @@ event_dict_aud = {'short_word': 12, 'long_word': 22}
 event_dict_vis = {'short_face': 10, 'long_face': 20,
                   'short_anim': 12, 'long_anim': 22,
                   'short_obj': 14, 'long_obj': 24,
-                  'blink':2, 'saccade':3},#,
+                  'blink':2, 'saccade':3}#,
 # %%
 stimuli = ['short_anim','long_anim','short_face','long_face','short_obj','long_obj']
 plot_ica_component(raw, ica, events, event_dict_vis, stimuli)

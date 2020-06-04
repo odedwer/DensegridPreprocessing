@@ -286,6 +286,7 @@ def plot_ica_component(raw, ica, events, event_dict,stimuli):
     #matplotlib.use('TkAgg', warn=False, force=True)
     import matplotlib.pyplot as plt
     import numpy as np
+    from mne.time_frequency import tfr_morlet
     from matplotlib.backends.backend_tkagg import (
         FigureCanvasTkAgg, NavigationToolbar2Tk)
     # Implement the default Matplotlib key bindings.
@@ -307,7 +308,7 @@ def plot_ica_component(raw, ica, events, event_dict,stimuli):
             self.frame = Frame(self.master)
             self.fig, self.ax = config_plot()
             self.graphIndex = 0
-            self.maxIndex = 7
+            self.maxIndex = ica.n_components_
             self.canvas = FigureCanvasTkAgg(self.fig, self.master)
             self.config_window()
             self.draw_graph(self.graphIndex)
@@ -329,12 +330,12 @@ def plot_ica_component(raw, ica, events, event_dict,stimuli):
         def draw_graph(self, index):
             ica_raw: mne.io.Raw = self.ica.get_sources(self.raw)
             ica_raw = ica_raw.pick(index)
-            freqs = np.logspace(2.5, 7.6, 30, base=2) # for the TF plots
+            freqs = np.logspace(3.5, 7.6, 30, base=2) # for the TF plots
             data_ica = ica_raw.get_data(picks=0)
             now = datetime.now()
             set_type = {i: 'eeg' for i in ica_raw.ch_names}  # setting ica_raw
             ica_raw.set_channel_types(mapping=set_type)
-            self.ica.plot_properties(epochs[stimuli], picks=0, show=False, psd_args={'fmax': 100})  # plot component properties
+            self.ica.plot_properties(epochs[stimuli], picks=index, show=False, psd_args={'fmax': 100})  # plot component properties
             self.fig, self.ax = config_plot()
             self.ax.clear()  # clear current axes
             self.fig, self.ax = plt.subplots(2, 3)
@@ -348,44 +349,82 @@ def plot_ica_component(raw, ica, events, event_dict,stimuli):
                                 preload=True, reject_by_annotation=True)
             evoked = epochs_ica.average(picks=0)
             evoked_saccade = epochs_ica['long_face'].average(0).data
-            self.ax[0, 2].plot((np.arange(len(evoked_saccade[0, :])) / evoked.info['sfreq'] - 0.4),
+            self.ax[1, 2].plot((np.arange(len(evoked_saccade[0, :])) / evoked.info['sfreq'] - 0.4),
                                evoked_saccade[0, :])
-            self.ax[0, 2].axhline(0, linestyle="--", color="grey", linewidth=.6)
-            self.ax[0, 2].set_title('Saccade ERP')
-            self.ax[0, 2].set_ylim(-2, 2)
-            self.ax[0, 2].set_ylabel('μV')
+            self.ax[1, 2].axhline(0, linestyle="--", color="grey", linewidth=.6)
+            self.ax[1, 2].set_title('Saccade ERP')
+            self.ax[1, 2].set_ylim(-2, 2)
+            self.ax[1, 2].set_ylabel('μV')
+
+
+            evoked_blink = epochs_ica['short_face'].average(0).data
+            self.ax[1, 1].plot((np.arange(len(evoked_blink[0, :])) / evoked.info['sfreq'] - 0.4),
+                               evoked_blink[0, :])
+            self.ax[1, 1].axhline(0, linestyle="--", color="grey", linewidth=.6)
+            self.ax[1, 1].set_title('Blink ERP')
+            self.ax[1, 1].set_ylabel('μV')
+            self.ax[1, 1].set_ylim(-2, 2)
+
 
             correls = [np.corrcoef(data_ica, raw._data[i])[0, 1] for i in range(len(self.raw.ch_names))]
             self.ax[1, 0].bar(x=raw.ch_names, height=correls, color='purple')
             self.ax[1, 0].set_title('Electrode correlation)')
             self.ax[1, 0].set_ylabel('r')
 
-            evoked_blink = epochs_ica['short_face'].average(0).data
-            self.ax[0, 1].plot((np.arange(len(evoked_blink[0, :])) / evoked.info['sfreq'] - 0.4), evoked_blink[0, :])
-            self.ax[0, 1].axhline(0, linestyle="--", color="grey", linewidth=.6)
-            self.ax[0, 1].set_title('Blink ERP')
-            self.ax[0, 1].set_ylabel('μV')
-            self.ax[0, 1].set_ylim(-2, 2)
-
-            power_saccade = tfr_morlet(epochs_ica['long_face'], freqs=freqsH, average=False,
-                                      n_cycles=freqs / 10, use_fft=True,
+            ############# TO DO
+            # fix axes -  show actual frequencies and time
+            # base correction
+            # add appropriate limits to colorbar
+            # think with GalV about parameters
+            power_saccade = tfr_morlet(epochs_ica['long_face'], freqs=freqs, average=False,
+                                      n_cycles=np.round(np.log((freqs+13)/10)*10), use_fft=True,
                                       return_itc=False, decim=3, n_jobs=12)
-            TFR = power_saccade.average().data
-            self.ax[1, 2].imshow((TFR[0]), cmap='jet', origin='lowest', aspect='auto')
-            self.ax[1, 2].set_title('Saccade-locked TF')
-            self.ax[1, 2].set_ylabel('Hz')
-            self.ax[1, 2].set_xlabel('Time (s)')
+            TFR_s = power_saccade.average().data
+            times_s = power_saccade.average().times[0:len(TFR_s[0, 0]):55]
+            TFR_s_corrected=(TFR_s[0].transpose()-(np.mean(TFR_s[0][:,40:100],axis=1))).transpose()
+            self.ax[0, 2].imshow((TFR_s_corrected), cmap='jet', origin='lowest', aspect='auto')
+            self.ax[0, 2].set_title('Saccade-locked TF')
+            self.ax[0, 2].set_ylabel('Hz')
+            self.ax[0, 2].set_xlabel('Time (s)')
+            self.ax[0, 2].set_yticks(list(2+3*np.arange(10)))
+            self.ax[0, 2].set_yticklabels(np.round(freqs[2:30:3]))
+            time_vec = np.arange(len(TFR_s[0, 0]))[0:len(TFR_s[0, 0]):55]
+            self.ax[0, 2].set_xticks(list(time_vec))
+            self.ax[0, 2].set_xticklabels(np.round(times_s,1))
 
 
 
-            power_blink = tfr_morlet(epochs_ica['long_face'], freqs=freqsH, average=False,
-                                      n_cycles=freqs / 10, use_fft=True,
+            power_trial = tfr_morlet(epochs_ica, freqs=freqs, average=False,
+                                      n_cycles=np.round(np.log((freqs+13)/10)*10), use_fft=True,
                                       return_itc=False, decim=3, n_jobs=12)
-            TFR = power_blink.average().data
-            self.ax[1, 1].imshow((TFR[0]), cmap='jet', origin='lowest', aspect='auto')
-            self.ax[1, 1].set_title('Blink-locked TF')
-            self.ax[1, 1].set_ylabel('Hz')
-            self.ax[1, 1].set_xlabel('Time (s)')
+            TFR_t = power_trial.average().data
+            times_t = power_trial.average().times[0:len(power_saccade.average().times):55]
+            TFR_t_corrected=(TFR_t[0].transpose()-(np.mean(TFR_t[0][:,40:100],axis=1))).transpose()
+            self.ax[0, 0].imshow((TFR_t_corrected), cmap='jet', origin='lowest', aspect='auto')
+            self.ax[0, 0].set_title('Stimulus-locked TF')
+            self.ax[0, 0].set_ylabel('Hz')
+            self.ax[0, 0].set_xlabel('Time (s)')
+            self.ax[0, 0].set_yticks(list(2+3*np.arange(10)))
+            self.ax[0, 0].set_yticklabels(np.round(freqs[2:30:3]))
+            time_vec = np.arange(len(TFR_t[0, 0]))[0:len(TFR_t[0, 0]):55]
+            self.ax[0, 0].set_xticks(list(time_vec))
+            self.ax[0, 0].set_xticklabels(np.round(times_t,1))
+
+            power_blink = tfr_morlet(epochs_ica['short_face'], freqs=freqs, average=False,
+                                      n_cycles=np.round(np.log((freqs+13)/10)*10), use_fft=True,
+                                      return_itc=False, decim=3, n_jobs=12)
+            TFR_b = power_blink.average().data
+            times_b = power_blink.average().times[0:len(power_blink.average().times):55]
+            TFR_b_corrected=(TFR_b[0].transpose()-(np.mean(TFR_b[0][:,40:100],axis=1))).transpose()
+            self.ax[0, 1].imshow((TFR_b_corrected), cmap='jet', origin='lowest', aspect='auto')
+            self.ax[0, 1].set_title('Blink-locked TF')
+            self.ax[0, 1].set_ylabel('Hz')
+            self.ax[0, 1].set_xlabel('Time (s)')
+            self.ax[0, 1].set_yticks(list(2+3*np.arange(10)))
+            self.ax[0, 1].set_yticklabels(np.round(freqs[2:30:3]))
+            self.ax[0, 1].set_xticks(list(time_vec))
+            self.ax[0, 1].set_xticklabels(np.round(times_b,1))
+
 
             #self.ax[1, 0].plot()
             #self.ax[1, 0].set_title('Axis [1, 0]')
