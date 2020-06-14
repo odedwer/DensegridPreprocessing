@@ -266,7 +266,7 @@ def annotate_breaks(raw, trig=254, samp_rate=2048):
     return raw
 
 
-def plot_ica_component(raw, ica, events, event_dict,stimuli):
+def plot_ica_component(raw, ica, events, event_dict,stimuli, comp_start):
     """
     plot a component -
     trial, saccade, blink evoked response
@@ -294,25 +294,23 @@ def plot_ica_component(raw, ica, events, event_dict,stimuli):
 
     # Seperated out config of plot to just do it once
     def config_plot():
-        fig, ax = plt.subplots()
-        #ax.set(xlabel='time (s)', ylabel='voltage (mV)',
-        #       title='Graph One')
+        fig, ax = plt.subplots(2,3)
         return (fig, ax)
 
     class matplotlibSwitchGraphs:
-        def __init__(self, master, raw, ica, epochs):
+        def __init__(self, master, raw, ica, epochs, comp_start):
             self.master = master
             self.stimuli = stimuli
             self.raw = raw
             self.ica = ica
             self.frame = Frame(self.master)
             self.fig, self.ax = config_plot()
-            self.graphIndex = 0
+            self.graphIndex = comp_start
             self.maxIndex = ica.n_components_
             self.canvas = FigureCanvasTkAgg(self.fig, self.master)
             self.config_window()
             self.draw_graph(self.graphIndex)
-            self.frame.pack(expand=YES, fill=BOTH)
+            self.frame.pack(expand=0)
             self.epochs = epochs
 
         def config_window(self):
@@ -339,9 +337,8 @@ def plot_ica_component(raw, ica, events, event_dict,stimuli):
             set_type = {i: 'eeg' for i in ica_raw.ch_names}  # setting ica_raw
             ica_raw.set_channel_types(mapping=set_type)
             self.ica.plot_properties(epochs[stimuli], picks=index, show=False, psd_args={'fmax': 100})  # plot component properties
-            self.fig, self.ax = config_plot()
-            self.ax.clear()  # clear current axes
-            self.fig, self.ax = plt.subplots(2, 3)
+            #self.fig, self.ax = config_plot()
+            [[self.ax[i,j].clear() for j in range(3)] for i in range(2)] # clear current axes
             self.fig.suptitle("Component "+str(index)+" - zoom in subplots for detail", fontsize=12)
             #self.ax[0, 0].plot(data_ica)
             #self.ax[0, 0].set_xlim([0, 10*ica_raw.info['sfreq']])
@@ -375,10 +372,6 @@ def plot_ica_component(raw, ica, events, event_dict,stimuli):
             self.ax[1, 0].set_ylabel('r')
 
             ############# TO DO
-            # fix axes -  show actual frequencies and time
-            # base correction
-            # add appropriate limits to colorbar
-            # think with GalV about parameters
             power_saccade = tfr_morlet(epochs_ica['long_face'], freqs=freqs, average=False,
                                       n_cycles=np.round(np.log((freqs+13)/10)*10), use_fft=True,
                                       return_itc=False, decim=3, n_jobs=12)
@@ -466,8 +459,9 @@ def plot_ica_component(raw, ica, events, event_dict,stimuli):
                         tmin=-0.4, tmax=1.9, baseline=(-0.25, -0.1),
                         reject_tmin=-.1, reject_tmax=1.5,  # reject based on 100 ms before trial onset and 1500 after
                         preload=True, reject_by_annotation=True)
-    ica.exclude = matplotlibSwitchGraphs(root, raw, ica, epochs).ica.exclude
+    ica.exclude = matplotlibSwitchGraphs(root, raw, ica, epochs,comp_start).ica.exclude
     root.mainloop()
+    root.destroy()
     return ica.exclude
 
 def ica_checker(raw, ica):

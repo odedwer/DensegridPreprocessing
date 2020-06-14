@@ -59,59 +59,30 @@ event_dict_aud = {'short_word': 12, 'long_word': 22}
 event_dict_vis = {'short_face': 10, 'long_face': 20,
                   'short_anim': 12, 'long_anim': 22,
                   'short_obj': 14, 'long_obj': 24}
-                  #'blink':2, 'saccade':3}#,
+                  #'blink':2, 'saccade':3}#,#
+                  # 'short_body': 16, 'long_body': 26}
+
 # %%
 stimuli = ['short_anim','long_anim','short_face','long_face','short_obj','long_obj']
-ica.exclude = plot_ica_component(raw, ica, events, event_dict_vis, stimuli)
-# %%
-#plot components function here
-matplotlib.use('Qt5Agg')
+comp_start = 0  # from which component to start showing
+ica.exclude = plot_ica_component(raw, ica, events, event_dict_vis, stimuli, comp_start)
 
-
-
-# %%
-ica = mne.preprocessing.read_ica(input())
-# checking components is in running_script.py
-ica.exclude = [2, 10]
-
-# find which ICs match the EOG pattern
-
-# %%
-
-eog_indices, eog_scores = ica.find_bads_eog(raw)
-ica.plot_scores(eog_scores, title="Nose correlations")
-eog_indices, eog_scores = ica.find_bads_eog(raw, ch_name="LHEOG-RHEOG", threshold=2.5)
-ica.plot_scores(eog_scores, title="Horizontal eye correlations")
-eog_indices, eog_scores = ica.find_bads_eog(raw, ch_name="RVEOGS-RVEOGI")
-ica.plot_scores(eog_scores, title="Vertical eye correlations")
-
-# barplot of ICA component "EOG match" scores
 # %%
 ica.apply(raw)
 
 # %% # epoch- set triggers dictionairy, find events, crate epoch objects - divided by triggers
 
 # event names
-# NO_RESP_TRIAL_START_CODE = 200
-# RESP_TRIAL_START_CODE = 201
-# SHORT_FACE_STIM_ONSET_CODE = 10
-# LONG_FACE_STIM_ONSET_CODE = 20
-# SHORT_ANIMAL_STIM_ONSET_CODE = 12
-# LONG_ANIMAL_STIM_ONSET_CODE = 22
-# SHORT_OBJECT_STIM_ONSET_CODE = 14
-# LONG_OBJECT_STIM_ONSET_CODE = 24
-# SHORT_BODY_STIM_ONSET_CODE = 16
-# LONG_BODY_STIM_ONSET_CODE = 26
-# SHORT_FACE_STIM_OFFSET_CODE = 11
-# LONG_FACE_STIM_OFFSET_CODE = 21
-# SHORT_ANIMAL_STIM_OFFSET_CODE = 13
-# LONG_ANIMAL_STIM_OFFSET_CODE = 23
-# SHORT_OBJECT_STIM_OFFSET_CODE = 15
-# LONG_OBJECT_STIM_OFFSET_CODE = 25
-# SHORT_BODY_STIM_OFFSET_CODE = 17
-# LONG_BODY_STIM_OFFSET_CODE = 27
+# NO_RESP_TRIAL_START_CODE = 200                 RESP_TRIAL_START_CODE = 201
+# SHORT_FACE_STIM_ONSET_CODE = 10                LONG_FACE_STIM_ONSET_CODE = 20
+# SHORT_ANIMAL_STIM_ONSET_CODE = 12              LONG_ANIMAL_STIM_ONSET_CODE = 22
+# SHORT_OBJECT_STIM_ONSET_CODE = 14              LONG_OBJECT_STIM_ONSET_CODE = 24
+# SHORT_BODY_STIM_ONSET_CODE = 16                LONG_BODY_STIM_ONSET_CODE = 26
+# SHORT_FACE_STIM_OFFSET_CODE = 11               LONG_FACE_STIM_OFFSET_CODE = 21
+# SHORT_ANIMAL_STIM_OFFSET_CODE = 13             LONG_ANIMAL_STIM_OFFSET_CODE = 23
+# SHORT_OBJECT_STIM_OFFSET_CODE = 15             LONG_OBJECT_STIM_OFFSET_CODE = 25
+# SHORT_BODY_STIM_OFFSET_CODE = 17               LONG_BODY_STIM_OFFSET_CODE = 27
 
-#                  'short_body': 16, 'long_body': 26}
 raw.notch_filter([50, 100, 150])  # notch filter
 # raw_filt = raw.copy().filter(l_freq=1, h_freq=30)  # performing fikltering on copy of raw data, not on raw itself or epochs
 # epoch raw data without filtering for TF analysis
