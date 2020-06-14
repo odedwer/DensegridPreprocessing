@@ -322,6 +322,8 @@ def plot_ica_component(raw, ica, events, event_dict,stimuli):
             self.canvas.get_tk_widget().pack(side=TOP, fill=BOTH, expand=1)
             self.button = Button(self.master, text="Quit", command=self._quit)
             self.button.pack(side=BOTTOM)
+            self.button_exclude_comp = Button(self.master, text="Exclude", command=self.exclude)
+            self.button_exclude_comp.pack(side=TOP)
             self.button_switch_up = Button(self.master, text="->", command=self.move_up)
             self.button_switch_up.pack(side=RIGHT)
             self.button_switch_down = Button(self.master, text="<-", command=self.move_down)
@@ -330,7 +332,8 @@ def plot_ica_component(raw, ica, events, event_dict,stimuli):
         def draw_graph(self, index):
             ica_raw: mne.io.Raw = self.ica.get_sources(self.raw)
             ica_raw = ica_raw.pick(index)
-            freqs = np.logspace(3.5, 7.6, 30, base=2) # for the TF plots
+            freqs = np.logspace(3.5, 7.6, 101, base=2) # for the TF plots
+            freqs_to_show = np.arange(0,len(freqs),int(len(freqs)/10))  # indexes of freqs to show on the graph later
             data_ica = ica_raw.get_data(picks=0)
             now = datetime.now()
             set_type = {i: 'eeg' for i in ica_raw.ch_names}  # setting ica_raw
@@ -386,8 +389,8 @@ def plot_ica_component(raw, ica, events, event_dict,stimuli):
             self.ax[0, 2].set_title('Saccade-locked TF')
             self.ax[0, 2].set_ylabel('Hz')
             self.ax[0, 2].set_xlabel('Time (s)')
-            self.ax[0, 2].set_yticks(list(2+3*np.arange(10)))
-            self.ax[0, 2].set_yticklabels(np.round(freqs[2:30:3]))
+            self.ax[0, 2].set_yticks(list(freqs_to_show))
+            self.ax[0, 2].set_yticklabels(np.round(freqs[freqs_to_show]))
             time_vec = np.arange(len(TFR_s[0, 0]))[0:len(TFR_s[0, 0]):55]
             self.ax[0, 2].set_xticks(list(time_vec))
             self.ax[0, 2].set_xticklabels(np.round(times_s,1))
@@ -404,8 +407,8 @@ def plot_ica_component(raw, ica, events, event_dict,stimuli):
             self.ax[0, 0].set_title('Stimulus-locked TF')
             self.ax[0, 0].set_ylabel('Hz')
             self.ax[0, 0].set_xlabel('Time (s)')
-            self.ax[0, 0].set_yticks(list(2+3*np.arange(10)))
-            self.ax[0, 0].set_yticklabels(np.round(freqs[2:30:3]))
+            self.ax[0, 0].set_yticks(list(freqs_to_show))
+            self.ax[0, 0].set_yticklabels(np.round(freqs[freqs_to_show]))
             time_vec = np.arange(len(TFR_t[0, 0]))[0:len(TFR_t[0, 0]):55]
             self.ax[0, 0].set_xticks(list(time_vec))
             self.ax[0, 0].set_xticklabels(np.round(times_t,1))
@@ -420,8 +423,8 @@ def plot_ica_component(raw, ica, events, event_dict,stimuli):
             self.ax[0, 1].set_title('Blink-locked TF')
             self.ax[0, 1].set_ylabel('Hz')
             self.ax[0, 1].set_xlabel('Time (s)')
-            self.ax[0, 1].set_yticks(list(2+3*np.arange(10)))
-            self.ax[0, 1].set_yticklabels(np.round(freqs[2:30:3]))
+            self.ax[0, 1].set_yticks(list(freqs_to_show))
+            self.ax[0, 1].set_yticklabels(np.round(freqs[freqs_to_show]))
             self.ax[0, 1].set_xticks(list(time_vec))
             self.ax[0, 1].set_xticklabels(np.round(times_b,1))
 
@@ -441,6 +444,10 @@ def plot_ica_component(raw, ica, events, event_dict,stimuli):
         def _quit(self):
             self.master.quit()  # stops mainloop
 
+        def exclude(self):
+            print("ICA component", self.graphIndex, "excluded")
+            self.ica.exclude.append(self.graphIndex)
+
         def move_up(self):
             # Need to call the correct draw, whether we're on graph one or two
             self.graphIndex = (self.graphIndex + 1)
@@ -459,9 +466,9 @@ def plot_ica_component(raw, ica, events, event_dict,stimuli):
                         tmin=-0.4, tmax=1.9, baseline=(-0.25, -0.1),
                         reject_tmin=-.1, reject_tmax=1.5,  # reject based on 100 ms before trial onset and 1500 after
                         preload=True, reject_by_annotation=True)
-    matplotlibSwitchGraphs(root, raw, ica, epochs)
+    ica.exclude = matplotlibSwitchGraphs(root, raw, ica, epochs).ica.exclude
     root.mainloop()
-
+    return ica.exclude
 
 def ica_checker(raw, ica):
     from tkinter.filedialog import askopenfilename

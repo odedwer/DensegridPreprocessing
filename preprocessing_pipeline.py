@@ -15,7 +15,7 @@ raw.drop_channels(['Ana' + str(i) for i in range(1, 9)])
 copy_raw = raw.copy()  # make a copy before adding the new channel
 raw = raw.resample(512,n_jobs=4)
 
-raw.filter(h_freq=None, l_freq=1, n_jobs=4)
+raw.filter(h_freq=None, l_freq=1, n_jobs=12)
 
 # %%
 raw = set_reg_eog(raw)
@@ -58,11 +58,11 @@ events = mne.find_events(raw, stim_channel="Status", mask=255, min_duration=2 / 
 event_dict_aud = {'short_word': 12, 'long_word': 22}
 event_dict_vis = {'short_face': 10, 'long_face': 20,
                   'short_anim': 12, 'long_anim': 22,
-                  'short_obj': 14, 'long_obj': 24,
-                  'blink':2, 'saccade':3}#,
+                  'short_obj': 14, 'long_obj': 24}
+                  #'blink':2, 'saccade':3}#,
 # %%
 stimuli = ['short_anim','long_anim','short_face','long_face','short_obj','long_obj']
-plot_ica_component(raw, ica, events, event_dict_vis, stimuli)
+ica.exclude = plot_ica_component(raw, ica, events, event_dict_vis, stimuli)
 # %%
 #plot components function here
 matplotlib.use('Qt5Agg')
