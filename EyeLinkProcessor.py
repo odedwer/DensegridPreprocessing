@@ -1,11 +1,17 @@
 from os.path import exists, basename
+from re import split
 from sys import stderr
 
+import numpy as np
 import pandas as pd
 
 from EyeTrackingParsers import *
 
-Eye = Enum('Eye', 'RIGHT LEFT BOTH')
+
+class Eye(Enum):
+    RIGHT = 1
+    LEFT = 2
+    BOTH = 3
 
 
 class EyeLinkProcessor:
@@ -14,6 +20,7 @@ class EyeLinkProcessor:
     This class assumes the recording is binocular without velocity
     This class can extract ET events from the samples and synchronize to mne.Raw file by triggers
     """
+    NOISE_THRESHOLD_LAMBDA = 5
 
     def __init__(self, filename, parser_type):
         """
@@ -34,6 +41,8 @@ class EyeLinkProcessor:
         self._parse_line_by_token = {'INPUT': self._parse_input, 'MSG': self._parse_msg, 'ESACC': self._parse_saccade,
                                      'EFIX': self._parse_fixation, "EBLINK": self._parse_blinks}
         self._parse_et_data()  # parse the file
+        self._dt = self._samples.loc[1, self._parser.TIME] - self._samples.loc[0, self._parser.TIME]
+        self._velocity_extracted_saccades = self._detect_saccades()
 
     def _parse_sample(self, line):
         """
@@ -119,3 +128,49 @@ class EyeLinkProcessor:
         else:
             print("%d Not supported. Please choose one of the following:\n" % eye +
                   "".join(["Eye.%s ," % e.name for e in Eye]), file=stderr)
+
+    @staticmethod
+    def _get_velocities(x, y, kernel):
+        vx = np.convolve(x, kernel, 'valid')
+        vy = np.convolve(y, kernel, 'valid')
+        return vx, vy
+
+    @staticmethod
+    def _get_sigmas(vx, vy):
+        sigma_x = np.median(np.power(vx, 2)) - np.power(np.median(vx), 2)
+        sigma_y = np.median(np.power(vy, 2)) - np.power(np.median(vy), 2)
+        return sigma_x, sigma_y
+
+    def _detect_saccades(self):
+        """
+        detect saccades based on velocity
+        refs:
+            Engbert & Kliegl 2002 https://doi.org/10.1016/S0042-6989(03)00084-1
+            Engbert & Mergenthaler 2006 https://doi.org/10.1073/pnas.0509557103
+
+        """
+        velocity_transform_kernel = (1 / (6 * self._dt)) * np.array([-1, -1, 0, 1, 1])
+        velocities, sigmas, thresholds = [], [], []
+        if self._parser.get_type() == Eye.BOTH or self._parser.get_type() == Eye.LEFT:
+            v_left_x, v_left_y = EyeLinkProcessor._get_velocities(self._samples[self._parser.LEFT_X],
+                                                                  self._samples[self._parser.LEFT_Y],
+                                                                  velocity_transform_kernel)
+            velocities.extend((v_left_x, v_left_y))
+            sigma_left_x, sigma_left_y = EyeLinkProcessor._get_sigmas(v_left_x, v_left_y)
+            sigmas.extend((sigma_left_x, sigma_left_y))
+            thresholds.extend((EyeLinkProcessor.NOISE_THRESHOLD_LAMBDA * sigma_left_x,
+                               EyeLinkProcessor.NOISE_THRESHOLD_LAMBDA * sigma_left_y))
+        if self._parser.get_type() == Eye.BOTH or self._parser.get_type() == Eye.RIGHT:
+            v_right_x, v_right_y = EyeLinkProcessor._get_velocities(self._samples[self._parser.RIGHT_X],
+                                                                    self._samples[self._parser.RIGHT_Y],
+                                                                    velocity_transform_kernel)
+            velocities.extend((v_right_x, v_right_y))
+            sigma_right_x, sigma_right_y = EyeLinkProcessor._get_sigmas(v_right_x, v_right_y)
+            sigmas.extend((sigma_right_x, sigma_right_y))
+            thresholds.extend((EyeLinkProcessor.NOISE_THRESHOLD_LAMBDA * sigma_right_x,
+                               EyeLinkProcessor.NOISE_THRESHOLD_LAMBDA * sigma_right_y))
+
+        velocities = np.asarray(velocities)
+        sigmas = np.asarray(sigmas)
+        thresholds = np.asarray(thresholds)
+        return velocities
