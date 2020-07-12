@@ -106,5 +106,6 @@ class BinocularNoVelocityParser(BaseETParser):
     def get_type():
         return Eye.BOTH
 
+    # has to be last in order to find the parsing methods
     parse_line_by_token = {'INPUT': parse_input, 'MSG': parse_msg, 'ESACC': parse_saccade, 'EFIX': parse_fixation,
                            "EBLINK": parse_blinks}

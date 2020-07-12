@@ -133,49 +133,16 @@ class EyeLinkProcessor:
             print("%d Not supported. Please choose one of the following:\n" % eye +
                   "".join(["Eye.%s ," % e.name for e in Eye]), file=stderr)
 
-    @staticmethod
-    def _get_velocities(x, y, kernel):
-        vx = np.convolve(x, kernel, 'valid')
-        vy = np.convolve(y, kernel, 'valid')
-        return vx, vy
-
-    @staticmethod
-    def _get_sigmas(vx, vy):
-        sigma_x = np.median(np.power(vx, 2)) - np.power(np.median(vx), 2)
-        sigma_y = np.median(np.power(vy, 2)) - np.power(np.median(vy), 2)
-        return sigma_x, sigma_y
-
-    def _add_saccades_to_self(self, x, y):
-        velocity_transform_kernel = (1 / (6 * self._dt)) * np.array([-1, -1, 0, 1, 1])
-        vx, vy = EyeLinkProcessor._get_velocities(x, y, velocity_transform_kernel)
-        sigma_x, sigma_y = EyeLinkProcessor._get_sigmas(vx, vy)
-        threshold_x, threshold_y = EyeLinkProcessor.NOISE_THRESHOLD_LAMBDA * sigma_x, \
-                                   EyeLinkProcessor.NOISE_THRESHOLD_LAMBDA * sigma_y
-        tmp = (np.power((vx / threshold_x), 2) + np.power((vy / threshold_y), 2)) > 1
-        tmp[np.isnan(tmp) | np.isnan(tmp)] = 0
-        above_threshold = np.ones((tmp.size - self._k + 1,), dtype=int)
-        for i in range(self._k):
-            above_threshold = (
-                    above_threshold & tmp[i:(-(self._k - i - 1) if i != self._k - 1 else len(tmp))].astype(int))
-        l_pad = (len(self._samples[self._parser.LEFT_X]) - above_threshold.size) // 2
-        r_pad = (len(self._samples[self._parser.LEFT_X]) - above_threshold.size) - l_pad
-        above_threshold = np.pad(above_threshold, ((l_pad, r_pad),))
-        self._velocity_extracted_saccades.append(above_threshold)
-
     def _detect_saccades(self):
         """
-        detect saccades based on velocity
-        refs:
-            Engbert & Kliegl 2002 https://doi.org/10.1016/S0042-6989(03)00084-1
-            Engbert & Mergenthaler 2006 https://doi.org/10.1073/pnas.0509557103
-
+        detect saccades based on implemented algorithm in self._saccade_detector
         """
-
         if self._parser.get_type() == Eye.BOTH or self._parser.get_type() == Eye.LEFT:
             left_data = self._samples[[self._parser.LEFT_X, self._parser.LEFT_Y]]
             self._detected_saccades = self._saccade_detector.detect_saccades(left_data, self._sf)
         if self._parser.get_type() == Eye.BOTH or self._parser.get_type() == Eye.RIGHT:
             right_data = self._samples[[self._parser.RIGHT_X, self._parser.RIGHT_Y]]
+            # choose how to stack the data - if no saccades were added, hstack, else left eye was parsed so vstack
             stack_function = np.hstack if isinstance(self._detected_saccades, list) else np.vstack
             self._detected_saccades = stack_function(
                 [self._detected_saccades, self._saccade_detector.detect_saccades(right_data, self._sf)]).T

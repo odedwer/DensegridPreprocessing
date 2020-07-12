@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 
 
 class BaseSaccadeDetector(ABC):
-
     @classmethod
     @abstractmethod
     def detect_saccades(cls, saccade_data, sf):

@@ -6,6 +6,7 @@ class BaseETParser(ABC):
     Base class for ET parsers, cannot be instantiated (abstract). To use, inherit from this class and override methods
     """
 
+    # there might be a need to define more "must have" properties such as this
     @property
     def TIME(self):
         raise NotImplementedError
