@@ -12,7 +12,7 @@ raws = read_bdf_files(preload=True)
 # concatenate to one raw file
 raw = mne.concatenate_raws(raws)
 raw.drop_channels(['ET_RX', 'ET_RY', 'ET_R_PUPIL', 'ET_LX', 'ET_LY',
-                   'ET_L_PUPIL', 'Photodiode', 'ResponseBox', 'Status'])
+                   'ET_L_PUPIL', 'Photodiode', 'ResponseBox'])
 copy_raw = raw.copy()  # make a copy before adding the new channel
 raw = raw.resample(512,n_jobs=4)
 
