@@ -188,7 +188,10 @@ def plot_all_channels_var(raw, max_val, threshold, remove_from_top=8):
     """
     channs = range(len(raw.ch_names) - remove_from_top - 1)
     data = raw.get_data(picks=channs)
-    var_vec = np.array([data[i,].var() for i in channs])
+    bad_points = np.ravel([np.arange(raw._annotations.onset[k],raw._annotations.onset[k]+raw._annotations.duration[k])
+                           for k in range(len(raw._annotations.onset))])
+    not_bad_points = np.in1d(np.arange(len(data[1,])),bad_points)
+    var_vec = np.array([data[i,not_bad_points].var() for i in channs]) # get only the ppoints that were not annotated as bad for the variance calculation!
     var_vec[var_vec > max_val] = max_val  # for visualiztions
     electrode_letter = [i[0] for i in raw.ch_names[0:(len(channs))]]
     for i in channs:  # print names of noisy electrodes
@@ -219,25 +222,29 @@ def annotate_bads_auto(raw, reject_criteria, jump_criteria, reject_criteria_blin
     """
     data = raw.get_data(picks='eeg')  # matrix size n_channels X samples
     del_arr = [raw.ch_names.index(i) for i in raw.info['bads']]
+    print(1)
     data = np.delete(data, del_arr, 0)  # don't check bad channels
     jumps = sum(abs(np.diff(data)) > jump_criteria) > 0  # mark large changes
     jumps = np.append(jumps, False)  # fix length for comparing
     # reject big jumps and threshold crossings, except the beggining and the end.
+    print(2)
     rejected_times = ((sum(abs(data) > reject_criteria) == 1) | jumps) & \
                      ((raw._times > 0.1) & (raw._times < max(raw._times) - 0.1))
     event_times = raw._times[rejected_times]  # collect all times of rejections except first and last 100ms
-    plt.plot(rejected_times)
-
+    #plt.plot(rejected_times)
+    print(3)
     extralist = []
     data_eog = raw.get_data(picks='eog')
     eye_events = raw._times[sum(abs(data_eog) > reject_criteria_blink) > 0]
     plt.plot(sum(abs(data_eog) > reject_criteria_blink) > 0)
     plt.title("blue-annotations before deleting eye events. orange - only eye events")
-
+    print(4)
     for i in range(2, len(event_times)):  # don't remove adjacent time points or blinks
+        if i % 50 == 0: print("another 50")
         if ((event_times[i] - event_times[i - 1]) < .05) | \
                 (sum(abs(event_times[i] - eye_events) < .3) > 0):  ## if a blink occured 300ms before or after
             extralist.append(i)
+    print(5)
     event_times = np.delete(event_times, extralist)
     onsets = event_times - 0.05
     print("100 ms of data rejected in times:\n", onsets)
@@ -245,6 +252,7 @@ def annotate_bads_auto(raw, reject_criteria, jump_criteria, reject_criteria_blin
     descriptions = ['BAD_data'] * len(event_times)
     annot = mne.Annotations(onsets, durations, descriptions,
                             orig_time=raw.info['meas_date'])
+    print(6)
     raw.set_annotations(annot)
     return raw
 

@@ -20,18 +20,20 @@ raw.filter(h_freq=None, l_freq=1, n_jobs=12)
 
 # %%
 raw = set_reg_eog(raw)
-# %% drop bad channels, annotate bad intervals
-plot_all_channels_var(raw, max_val=1e-5, threshold=5e-10)  # max value for visualization in case of large value
-raw.plot(n_channels=30, duration=30)  # to see data and mark bad channels
-raw.info['bads'] = ["C26","D3","E13"]
-
 # %%
 raw = annotate_bads_auto(raw, reject_criteria=150e-6, jump_criteria=1e-4)
 # %% plot again to see annotations and mark missed noise/jumps
 raw.plot(n_channels=30, duration=30)  # to see data and mark bad  segments
 
 # %%
-print("total time annotated as bad: ", round(sum(raw._annotations.duration), 2))
+print("total time annotated as bad: ", round(sum(raw._annotations.duration), 2)
+# %% drop bad channels, annotate bad intervals
+plot_all_channels_var(raw, max_val=1e-5, threshold=20e-10)  # max value for visualization in case of large value
+raw.plot(n_channels=30, duration=30)  # to see data and mark bad channels
+# %% set bads
+raw.info['bads'] = ["C26","D3","E13"]
+
+)
 # %%
 if input("auditory? (Y/N)") == 'Y':
     raw = annotate_breaks(raw)  # only for auditory
@@ -39,7 +41,7 @@ if input("auditory? (Y/N)") == 'Y':
 # set the montage of the electrodes - position on head
 # %%
 raw.set_montage(montage=mne.channels.read_custom_montage("SavedResults/S2/S2.elc"), raise_if_subset=False)
-raw.set_eeg_reference()
+raw.set_eeg_reference(['Nose'])
 # %%
 # reject bad intervals based on pek to peak in ICA** - make sure its in the right place!
 reject_criteria = dict(eeg=250e-6, eog=200e-5)  # 200 μV and only extremeeog events
@@ -84,7 +86,7 @@ ica.apply(raw)
 # SHORT_OBJECT_STIM_OFFSET_CODE = 15             LONG_OBJECT_STIM_OFFSET_CODE = 25
 # SHORT_BODY_STIM_OFFSET_CODE = 17               LONG_BODY_STIM_OFFSET_CODE = 27
 
-raw.notch_filter([50, 100, 150])  # notch filter
+raw.notch_filter([50, 100, 150])  # notch filter - אםם 'ןגק?
 # raw_filt = raw.copy().filter(l_freq=1, h_freq=30)  # performing fikltering on copy of raw data, not on raw itself or epochs
 # epoch raw data without filtering for TF analysis
 epochs = mne.Epochs(raw, events, event_id=event_dict_vis,
