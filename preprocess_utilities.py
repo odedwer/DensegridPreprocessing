@@ -13,6 +13,7 @@ import mne
 from h5py import File
 from scipy import stats
 
+
 def save_data(obj, filename):
     """
     Saves data to be loaded from disk using pickle
@@ -188,10 +189,11 @@ def plot_all_channels_var(raw, max_val, threshold, remove_from_top=8):
     """
     channs = range(len(raw.ch_names) - remove_from_top - 1)
     data = raw.get_data(picks=channs)
-    bad_points = np.ravel([np.arange(raw._annotations.onset[k],raw._annotations.onset[k]+raw._annotations.duration[k])
-                           for k in range(len(raw._annotations.onset))])
-    not_bad_points = np.in1d(np.arange(len(data[1,])),bad_points)
-    var_vec = np.array([data[i,not_bad_points].var() for i in channs]) # get only the ppoints that were not annotated as bad for the variance calculation!
+    bad_points = raw._annotations.onset
+    timepoints = np.round(raw._times[np.arange(len(data[1,]))], 2)
+    not_bad_points = np.in1d(timepoints, np.round(bad_points, 2))
+    var_vec = np.array([data[i, not_bad_points].var() for i in
+                        channs])  # get only the ppoints that were not annotated as bad for the variance calculation!
     var_vec[var_vec > max_val] = max_val  # for visualiztions
     electrode_letter = [i[0] for i in raw.ch_names[0:(len(channs))]]
     for i in channs:  # print names of noisy electrodes
@@ -222,37 +224,33 @@ def annotate_bads_auto(raw, reject_criteria, jump_criteria, reject_criteria_blin
     """
     data = raw.get_data(picks='eeg')  # matrix size n_channels X samples
     del_arr = [raw.ch_names.index(i) for i in raw.info['bads']]
-    print(1)
     data = np.delete(data, del_arr, 0)  # don't check bad channels
-    jumps = sum(abs(np.diff(data)) > jump_criteria) > 0  # mark large changes
+    jumps = abs(sum(np.diff(data))) > len(data) * jump_criteria  # mark large changes (mean change over jump threshold)
     jumps = np.append(jumps, False)  # fix length for comparing
     # reject big jumps and threshold crossings, except the beggining and the end.
-    print(2)
-    rejected_times = ((sum(abs(data) > reject_criteria) == 1) | jumps) & \
+    rejected_times = (sum(abs(data) > reject_criteria) == 1) & \
                      ((raw._times > 0.1) & (raw._times < max(raw._times) - 0.1))
     event_times = raw._times[rejected_times]  # collect all times of rejections except first and last 100ms
-    #plt.plot(rejected_times)
-    print(3)
+    plt.plot(rejected_times)
     extralist = []
     data_eog = raw.get_data(picks='eog')
     eye_events = raw._times[sum(abs(data_eog) > reject_criteria_blink) > 0]
     plt.plot(sum(abs(data_eog) > reject_criteria_blink) > 0)
     plt.title("blue-annotations before deleting eye events. orange - only eye events")
-    print(4)
+    print("loop length:", len(event_times))
     for i in range(2, len(event_times)):  # don't remove adjacent time points or blinks
-        if i % 50 == 0: print("another 50")
+        if i % 300 == 0: print(i)
         if ((event_times[i] - event_times[i - 1]) < .05) | \
-                (sum(abs(event_times[i] - eye_events) < .3) > 0):  ## if a blink occured 300ms before or after
+                (np.any(abs(event_times[i] - eye_events) < .3) > 0):  ## if a blink occured 300ms before or after
             extralist.append(i)
-    print(5)
     event_times = np.delete(event_times, extralist)
+    event_times = np.append(event_times, raw._times[jumps])  # add jumps
     onsets = event_times - 0.05
     print("100 ms of data rejected in times:\n", onsets)
     durations = [0.1] * len(event_times)
     descriptions = ['BAD_data'] * len(event_times)
     annot = mne.Annotations(onsets, durations, descriptions,
                             orig_time=raw.info['meas_date'])
-    print(6)
     raw.set_annotations(annot)
     return raw
 
@@ -274,7 +272,7 @@ def annotate_breaks(raw, trig=254, samp_rate=2048):
     return raw
 
 
-def plot_ica_component(raw, ica, events, event_dict,stimuli, comp_start):
+def plot_ica_component(raw, ica, events, event_dict, stimuli, comp_start):
     """
     plot a component -
     trial, saccade, blink evoked response
@@ -291,7 +289,7 @@ def plot_ica_component(raw, ica, events, event_dict,stimuli, comp_start):
     :return:
     """
     import matplotlib
-    #matplotlib.use('TkAgg', warn=False, force=True)
+    # matplotlib.use('TkAgg', warn=False, force=True)
     import matplotlib.pyplot as plt
     import numpy as np
     from mne.time_frequency import tfr_morlet
@@ -302,7 +300,7 @@ def plot_ica_component(raw, ica, events, event_dict,stimuli, comp_start):
 
     # Seperated out config of plot to just do it once
     def config_plot():
-        fig, ax = plt.subplots(2,3)
+        fig, ax = plt.subplots(2, 3)
         return (fig, ax)
 
     class matplotlibSwitchGraphs:
@@ -338,25 +336,27 @@ def plot_ica_component(raw, ica, events, event_dict,stimuli, comp_start):
         def draw_graph(self, index):
             ica_raw: mne.io.Raw = self.ica.get_sources(self.raw)
             ica_raw = ica_raw.pick(index)
-            freqs = np.logspace(3.5, 7.6, 101, base=2) # for the TF plots
-            freqs_to_show = np.arange(0,len(freqs),int(len(freqs)/10))  # indexes of freqs to show on the graph later
+            freqs = np.logspace(3.5, 7.6, 101, base=2)  # for the TF plots
+            freqs_to_show = np.arange(0, len(freqs),
+                                      int(len(freqs) / 10))  # indexes of freqs to show on the graph later
             data_ica = ica_raw.get_data(picks=0)
             now = datetime.now()
             set_type = {i: 'eeg' for i in ica_raw.ch_names}  # setting ica_raw
             ica_raw.set_channel_types(mapping=set_type)
-            self.ica.plot_properties(epochs[stimuli], picks=index, show=False, psd_args={'fmax': 100})  # plot component properties
-            #self.fig, self.ax = config_plot()
-            [[self.ax[i,j].clear() for j in range(3)] for i in range(2)] # clear current axes
-            self.fig.suptitle("Component "+str(index)+" - zoom in subplots for detail", fontsize=12)
-            #self.ax[0, 0].plot(data_ica)
-            #self.ax[0, 0].set_xlim([0, 10*ica_raw.info['sfreq']])
+            self.ica.plot_properties(epochs[stimuli], picks=index, show=False,
+                                     psd_args={'fmax': 100})  # plot component properties
+            # self.fig, self.ax = config_plot()
+            [[self.ax[i, j].clear() for j in range(3)] for i in range(2)]  # clear current axes
+            self.fig.suptitle("Component " + str(index) + " - zoom in subplots for detail", fontsize=12)
+            # self.ax[0, 0].plot(data_ica)
+            # self.ax[0, 0].set_xlim([0, 10*ica_raw.info['sfreq']])
             epochs_ica = mne.Epochs(ica_raw, events, event_id=event_dict,
-                                tmin=-0.4, tmax=1.9, baseline=(-0.25, -0.1),
-                                reject_tmin=-.1, reject_tmax=1.5,
-                                # reject based on 100 ms before trial onset and 1500 after
-                                preload=True, reject_by_annotation=True)
+                                    tmin=-0.4, tmax=1.9, baseline=(-0.25, -0.1),
+                                    reject_tmin=-.1, reject_tmax=1.5,
+                                    # reject based on 100 ms before trial onset and 1500 after
+                                    preload=True, reject_by_annotation=True)
             evoked = epochs_ica.average(picks=0)
-            evoked_saccade = epochs_ica['long_face'].average(0).data
+            evoked_saccade = epochs_ica['saccade'].average(0).data
             self.ax[1, 2].plot((np.arange(len(evoked_saccade[0, :])) / evoked.info['sfreq'] - 0.4),
                                evoked_saccade[0, :])
             self.ax[1, 2].axhline(0, linestyle="--", color="grey", linewidth=.6)
@@ -364,15 +364,13 @@ def plot_ica_component(raw, ica, events, event_dict,stimuli, comp_start):
             self.ax[1, 2].set_ylim(-2, 2)
             self.ax[1, 2].set_ylabel('μV')
 
-
-            evoked_blink = epochs_ica['short_face'].average(0).data
+            evoked_blink = epochs_ica['blink'].average(0).data
             self.ax[1, 1].plot((np.arange(len(evoked_blink[0, :])) / evoked.info['sfreq'] - 0.4),
                                evoked_blink[0, :])
             self.ax[1, 1].axhline(0, linestyle="--", color="grey", linewidth=.6)
             self.ax[1, 1].set_title('Blink ERP')
             self.ax[1, 1].set_ylabel('μV')
             self.ax[1, 1].set_ylim(-2, 2)
-
 
             correls = [np.corrcoef(data_ica, raw._data[i])[0, 1] for i in range(len(self.raw.ch_names))]
             self.ax[1, 0].bar(x=raw.ch_names, height=correls, color='purple')
@@ -381,11 +379,11 @@ def plot_ica_component(raw, ica, events, event_dict,stimuli, comp_start):
 
             ############# TO DO
             power_saccade = tfr_morlet(epochs_ica['long_face'], freqs=freqs, average=False,
-                                      n_cycles=np.round(np.log((freqs+13)/10)*10), use_fft=True,
-                                      return_itc=False, decim=3, n_jobs=12)
+                                       n_cycles=np.round(np.log((freqs + 13) / 10) * 10), use_fft=True,
+                                       return_itc=False, decim=3, n_jobs=12)
             TFR_s = power_saccade.average().data
             times_s = power_saccade.average().times[0:len(TFR_s[0, 0]):55]
-            TFR_s_corrected=(TFR_s[0].transpose()-(np.mean(TFR_s[0][:,40:100],axis=1))).transpose()
+            TFR_s_corrected = (TFR_s[0].transpose() - (np.mean(TFR_s[0][:, 40:100], axis=1))).transpose()
             self.ax[0, 2].imshow((TFR_s_corrected), cmap='jet', origin='lowest', aspect='auto')
             self.ax[0, 2].set_title('Saccade-locked TF')
             self.ax[0, 2].set_ylabel('Hz')
@@ -394,16 +392,14 @@ def plot_ica_component(raw, ica, events, event_dict,stimuli, comp_start):
             self.ax[0, 2].set_yticklabels(np.round(freqs[freqs_to_show]))
             time_vec = np.arange(len(TFR_s[0, 0]))[0:len(TFR_s[0, 0]):55]
             self.ax[0, 2].set_xticks(list(time_vec))
-            self.ax[0, 2].set_xticklabels(np.round(times_s,1))
-
-
+            self.ax[0, 2].set_xticklabels(np.round(times_s, 1))
 
             power_trial = tfr_morlet(epochs_ica, freqs=freqs, average=False,
-                                      n_cycles=np.round(np.log((freqs+13)/10)*10), use_fft=True,
-                                      return_itc=False, decim=3, n_jobs=12)
+                                     n_cycles=np.round(np.log((freqs + 13) / 10) * 10), use_fft=True,
+                                     return_itc=False, decim=3, n_jobs=12)
             TFR_t = power_trial.average().data
             times_t = power_trial.average().times[0:len(power_saccade.average().times):55]
-            TFR_t_corrected=(TFR_t[0].transpose()-(np.mean(TFR_t[0][:,40:100],axis=1))).transpose()
+            TFR_t_corrected = (TFR_t[0].transpose() - (np.mean(TFR_t[0][:, 40:100], axis=1))).transpose()
             self.ax[0, 0].imshow((TFR_t_corrected), cmap='jet', origin='lowest', aspect='auto')
             self.ax[0, 0].set_title('Stimulus-locked TF')
             self.ax[0, 0].set_ylabel('Hz')
@@ -412,14 +408,14 @@ def plot_ica_component(raw, ica, events, event_dict,stimuli, comp_start):
             self.ax[0, 0].set_yticklabels(np.round(freqs[freqs_to_show]))
             time_vec = np.arange(len(TFR_t[0, 0]))[0:len(TFR_t[0, 0]):55]
             self.ax[0, 0].set_xticks(list(time_vec))
-            self.ax[0, 0].set_xticklabels(np.round(times_t,1))
+            self.ax[0, 0].set_xticklabels(np.round(times_t, 1))
 
             power_blink = tfr_morlet(epochs_ica['short_face'], freqs=freqs, average=False,
-                                      n_cycles=np.round(np.log((freqs+13)/10)*10), use_fft=True,
-                                      return_itc=False, decim=3, n_jobs=12)
+                                     n_cycles=np.round(np.log((freqs + 13) / 10) * 10), use_fft=True,
+                                     return_itc=False, decim=3, n_jobs=12)
             TFR_b = power_blink.average().data
             times_b = power_blink.average().times[0:len(power_blink.average().times):55]
-            TFR_b_corrected=(TFR_b[0].transpose()-(np.mean(TFR_b[0][:,40:100],axis=1))).transpose()
+            TFR_b_corrected = (TFR_b[0].transpose() - (np.mean(TFR_b[0][:, 40:100], axis=1))).transpose()
             self.ax[0, 1].imshow((TFR_b_corrected), cmap='jet', origin='lowest', aspect='auto')
             self.ax[0, 1].set_title('Blink-locked TF')
             self.ax[0, 1].set_ylabel('Hz')
@@ -427,16 +423,15 @@ def plot_ica_component(raw, ica, events, event_dict,stimuli, comp_start):
             self.ax[0, 1].set_yticks(list(freqs_to_show))
             self.ax[0, 1].set_yticklabels(np.round(freqs[freqs_to_show]))
             self.ax[0, 1].set_xticks(list(time_vec))
-            self.ax[0, 1].set_xticklabels(np.round(times_b,1))
+            self.ax[0, 1].set_xticklabels(np.round(times_b, 1))
 
-
-            #self.ax[1, 0].plot()
-            #self.ax[1, 0].set_title('Axis [1, 0]')
-            #self.ax[1, 1].plot()
-            #self.ax[1, 1].set_title('Axis [1, 1]')
-            #self.ax.set(title="component " + str(index))
+            # self.ax[1, 0].plot()
+            # self.ax[1, 0].set_title('Axis [1, 0]')
+            # self.ax[1, 1].plot()
+            # self.ax[1, 1].set_title('Axis [1, 1]')
+            # self.ax.set(title="component " + str(index))
             self.canvas.draw()
-            print("drawing graph took ", datetime.now()-now)
+            print("drawing graph took ", datetime.now() - now)
 
         def on_key_press(event):
             print("you pressed {}".format(event.key))
@@ -462,15 +457,17 @@ def plot_ica_component(raw, ica, events, event_dict,stimuli, comp_start):
             if self.graphIndex < 0:
                 self.graphIndex = 0
             self.draw_graph(self.graphIndex)
+
     root = Tk()
     epochs = mne.Epochs(raw, events, event_id=event_dict,
                         tmin=-0.4, tmax=1.9, baseline=(-0.25, -0.1),
                         reject_tmin=-.1, reject_tmax=1.5,  # reject based on 100 ms before trial onset and 1500 after
                         preload=True, reject_by_annotation=True)
-    ica.exclude = matplotlibSwitchGraphs(root, raw, ica, epochs,comp_start).ica.exclude
+    ica.exclude = matplotlibSwitchGraphs(root, raw, ica, epochs, comp_start).ica.exclude
     root.mainloop()
     root.destroy()
     return ica.exclude
+
 
 def ica_checker(raw, ica):
     from tkinter.filedialog import askopenfilename
@@ -522,3 +519,55 @@ def ica_checker(raw, ica):
         plt.show()
         if input("keep plotting? (Y/N)") == "N":
             break
+
+
+def multiply_event(raw, stim_onset_events, event_id=1,
+                   cut_before_event=30, cut_after_event=50,
+                   cut_epochs=1700, size_new=1):
+    """
+    The function creates a new raw data for ICA,
+     with the extension being a multiplication of allwanted events, in order to create dominant components in the ICA.
+     Stages:
+     1. Cut all data between (-100)-1700 after stimulus onset
+     2. Cut all data between 30ms before to 50 ms after every saccade onset and create new raw file
+     3. Add to one raw file
+
+    :param cut_epochs: how much time to take after stim onset
+    :param cut_after_event: how much to cut before event
+    :param cut_before_event: how much to cut after event
+    :param raw: original raw file
+    :param event_id: the name of the event to cut (saccades usually)
+    :param stim_onset_events: numbers of stimulus onsets (will be at the dictionary of events)
+    :param size_new: integer. how many times should i multiply the raws list
+    :return: the new concatenated raw file
+    """
+
+    # 1
+    raw.load_data()
+    is_saccade = np.round(raw.get_data("Status")) == event_id  # for every time point be True if its a saccade
+    is_stim_onset = np.in1d(np.round(raw.get_data("Status")), stim_onset_events)
+    not_rejected = ~(np.in1d(np.round(raw._times), np.round(
+        raw._annotations.onset)))  # marks all the times that did not include an artifact in a range of second
+    saccade_times = raw._times[is_saccade[0] & not_rejected]
+    stim_onset_times = raw._times[is_stim_onset & not_rejected]
+    # 2
+    raw_array = []
+    for i in range(len(saccade_times)):
+        curr_crop = raw.copy().crop(tmin=saccade_times[i] - cut_before_event/1000,
+                             tmax=saccade_times[i] + cut_after_event/1000)
+        print(i)
+        curr_crop._data = (curr_crop._data.T - np.mean(curr_crop._data, axis=1)).T  # mean-center
+        raw_array.append(curr_crop)
+    # 3
+    print(len(saccade_times), " saccade segements created")
+    for i in range(len(stim_onset_times)):
+        curr_crop = raw.copy().crop(tmin=stim_onset_times[i] - 50/1000,
+                             tmax=stim_onset_times[i] + cut_epochs/1000)
+        print(i)
+        curr_crop._data = (curr_crop._data.T - np.mean(curr_crop._data, axis=1)).T
+        raw_array.append(curr_crop)
+
+    raw_array = raw_array * size_new
+    print(len(stim_onset_times), " stimulus segements created")
+
+    return mne.concatenate_raws(raw_array)
