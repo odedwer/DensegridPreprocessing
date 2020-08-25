@@ -37,7 +37,7 @@ class EyeLinkProcessor:
                                      'EFIX': self._parse_fixation, "EBLINK": self._parse_blinks}
         self._parse_et_data()  # parse the file
         # get sampling frequency
-        self._sf = 1000. / self._samples.loc[1, self._parser.TIME] - self._samples.loc[0, self._parser.TIME]
+        self._sf = 1000. / (self._samples.loc[1, self._parser.TIME] - self._samples.loc[0, self._parser.TIME])
         self._saccade_detector = saccade_detector.value  # enum, get class from enum value
         self._detected_saccades = []
         self._detect_saccades()
