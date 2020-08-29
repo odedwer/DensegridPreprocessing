@@ -32,78 +32,85 @@ class BinocularNoVelocityParser(BaseETParser):
     LEFT_Y = "left y"
     LEFT_X = "left x"
     TIME = "time"
+    MISSING_VALUE = -1
 
-    @staticmethod
-    def parse_sample(line):
+    @property
+    def is_binocular(self):
+        return True
+
+    @classmethod
+    def toggle_blink(cls):
+        cls.blink = not cls.blink
+
+    @classmethod
+    def parse_sample(cls, line):
         """
         parses a sample line from the EDF
         """
-        return {BinocularNoVelocityParser.TIME: int(line[0]), BinocularNoVelocityParser.LEFT_X: float(line[1]),
-                BinocularNoVelocityParser.LEFT_Y: float(line[2]),
-                BinocularNoVelocityParser.LEFT_PUPIL_SIZE: float(line[3]),
-                BinocularNoVelocityParser.RIGHT_X: float(line[4]),
-                BinocularNoVelocityParser.RIGHT_Y: float(line[5]),
-                BinocularNoVelocityParser.RIGHT_PUPIL_SIZE: float(line[6])}
+        return {cls.TIME: int(line[0]), cls.LEFT_X: float(line[1]), cls.LEFT_Y: float(line[2]),
+                cls.LEFT_PUPIL_SIZE: float(line[3]), cls.RIGHT_X: float(line[4]), cls.RIGHT_Y: float(line[5]),
+                cls.RIGHT_PUPIL_SIZE: float(line[6])}
 
-    @staticmethod
-    def parse_msg(line):
+    @classmethod
+    def parse_msg(cls, line):
         """
         parses a message line from the EDF
         """
-        return {BinocularNoVelocityParser.TIME: int(line[1]), BinocularNoVelocityParser.MSG: "".join(line[2:-1])}
+        return {cls.TIME: int(line[1]), cls.MSG: "".join(line[2:-1])}
 
-    @staticmethod
-    def parse_input(line):
+    @classmethod
+    def parse_input(cls, line):
         """
         parses a trigger line from the EDF
         """
-        return {BinocularNoVelocityParser.TIME: int(line[1]), BinocularNoVelocityParser.TRIGGER: int(line[2])}
+        return {cls.TIME: int(line[1]), cls.TRIGGER: int(line[2])}
 
-    @staticmethod
-    def parse_fixation(line):
+    @classmethod
+    def parse_fixation(cls, line):
         """
         parses a fixation line from the EDF
         """
-        return {BinocularNoVelocityParser.EYE_STR: line[1], BinocularNoVelocityParser.START_TIME: int(line[2]),
-                BinocularNoVelocityParser.END_TIME: int(line[3]),
-                BinocularNoVelocityParser.DURATION: int(line[4]), BinocularNoVelocityParser.AVG_X: float(line[5]),
-                BinocularNoVelocityParser.AVG_Y: float(line[6]),
-                BinocularNoVelocityParser.AVG_PUPIL_SIZE: float(line[6])}
+        return {cls.EYE_STR: line[1], cls.START_TIME: int(line[2]), cls.END_TIME: int(line[3]),
+                cls.DURATION: int(line[4]), cls.AVG_X: float(line[5]), cls.AVG_Y: float(line[6]),
+                cls.AVG_PUPIL_SIZE: float(line[6])}
 
-    @staticmethod
-    def parse_saccade(line):
+    def get_empty_sample(cls, time):
+        return {cls.TIME: time, cls.LEFT_X: cls.MISSING_VALUE, cls.LEFT_Y: cls.MISSING_VALUE,
+                cls.LEFT_PUPIL_SIZE: cls.MISSING_VALUE, cls.RIGHT_X: cls.MISSING_VALUE, cls.RIGHT_Y: cls.MISSING_VALUE,
+                cls.RIGHT_PUPIL_SIZE: cls.MISSING_VALUE}
+
+    @classmethod
+    def parse_saccade(cls, line):
         """
         parses a saccade line from the EDF
         """
-        return {BinocularNoVelocityParser.EYE_STR: line[1], BinocularNoVelocityParser.START_TIME: int(line[2]),
-                BinocularNoVelocityParser.END_TIME: int(line[3]), BinocularNoVelocityParser.DURATION: int(line[4]),
-                BinocularNoVelocityParser.START_X: float(line[5]), BinocularNoVelocityParser.START_Y: float(line[6]),
-                BinocularNoVelocityParser.END_X: float(line[6]), BinocularNoVelocityParser.END_Y: float(line[7]),
-                BinocularNoVelocityParser.AMPLITUDE: float(line[8]),
-                BinocularNoVelocityParser.PEAK_VELOCITY: float(line[9])}
+        return {cls.EYE_STR: line[1], cls.START_TIME: int(line[2]), cls.END_TIME: int(line[3]),
+                cls.DURATION: int(line[4]), cls.START_X: float(line[5]), cls.START_Y: float(line[6]),
+                cls.END_X: float(line[6]), cls.END_Y: float(line[7]), cls.AMPLITUDE: float(line[8]),
+                cls.PEAK_VELOCITY: float(line[9])}
 
-    @staticmethod
-    def parse_blinks(line):
+    @classmethod
+    def parse_blinks(cls, line):
         """
         parses a blink line from the EDF
         """
-        return {BinocularNoVelocityParser.EYE_STR: line[1], BinocularNoVelocityParser.START_TIME: int(line[2]),
-                BinocularNoVelocityParser.END_TIME: int(line[3]),
-                BinocularNoVelocityParser.DURATION: int(line[4])}
+        cls.blink = True
+        return {cls.EYE_STR: line[1], cls.START_TIME: int(line[2]), cls.END_TIME: int(line[3]),
+                cls.DURATION: int(line[4])}
 
-    @staticmethod
-    def parse_recordings(line):
+    @classmethod
+    def parse_recordings(cls, line):
         """
         parses a recording start/end line from the EDF
         """
-        return {BinocularNoVelocityParser.TYPE: line[0], BinocularNoVelocityParser.TIME: int(line[1])}
+        return {cls.TYPE: line[0], cls.TIME: int(line[1])}
 
-    @staticmethod
-    def is_sample(line):
+    @classmethod
+    def is_sample(cls, line):
         return line[-2] == '.....'
 
-    @staticmethod
-    def get_type():
+    @classmethod
+    def get_type(cls):
         return Eye.BOTH
 
     # has to be last in order to find the parsing methods

@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 from scipy.stats import pearsonr
 from EyeEnum import Eye
+from BaseETParser import BaseETParser
 
 
 class EyeLinkProcessor:
@@ -38,10 +39,11 @@ class EyeLinkProcessor:
         self._saccades = []
         self._blinks = []
         self._recording_data = []
-        self._parser = parser_type.value  # enum, get class from enum value
+        self._parser: BaseETParser = parser_type.value  # enum, get class from enum value
         # method dictionary for parsing
         self._parse_line_by_token = {'INPUT': self._parse_input, 'MSG': self._parse_msg, 'ESACC': self._parse_saccade,
                                      'EFIX': self._parse_fixation, "EBLINK": self._parse_blinks}
+        self._dt = None
         self._parse_et_data()  # parse the file
         # get sampling frequency
         self._sf = 1000. / (self._samples.loc[1, self._parser.TIME] - self._samples.loc[0, self._parser.TIME])
@@ -54,7 +56,15 @@ class EyeLinkProcessor:
         """
         parses a sample line from the EDF
         """
-        self._samples.append(self._parser.parse_sample(line))
+        s = self._parser.parse_sample(line)
+        if self._parser.is_blink():
+            cur_time = self._samples[-1][self._parser.TIME] + self._dt
+            end_time = s[self._parser.TIME]
+            while cur_time < end_time:
+                self._samples.append(self._parser.get_empty_sample(cur_time))
+                cur_time += self._dt
+            self._parser.toggle_blink()
+        self._samples.append(s)
 
     def _parse_msg(self, line):
         """
@@ -105,7 +115,11 @@ class EyeLinkProcessor:
         with open(self._filename, 'r') as file:
             all_lines = file.readlines()
         # parse every line
-        for line in all_lines:
+        dt_calculated = False
+        for i, line in enumerate(all_lines):
+            if not dt_calculated and len(self._samples) > 1:
+                self._dt = self._samples[1][self._parser.TIME] - self._samples[0][self._parser.TIME]
+                dt_calculated = True
             line = split("[ \n\t]+", line)
             # ignore lines that are not samples or have a first token corresponding to one of the tokens in the
             # parsing methods dictionary
@@ -166,24 +180,27 @@ class EyeLinkProcessor:
             self._detected_saccades[saccade_indices_r[monocular_saccade_indices]] = 1
 
     def get_synced_microsaccades(self):
+        return self._eeg_index[self._detected_saccades != 0].astype(np.int)
 
-        return np.where(self._eeg_index[self._detected_saccades] != np.NaN)
+    def _get_synced_et_data(self, times: np.ndarray):
+        if self._parser.is_binocular:
+            times = times[np.argsort(times)]  # sort
+            times = times[::2]  # get lowest of each pair
+        samples = np.asarray(self._samples['time'])
+        array_event_positions = np.searchsorted(samples, times)
+        return_array = self._eeg_index[array_event_positions]
+        return np.sort(return_array[~np.isnan(return_array)])
 
     def get_synced_blinks(self):
-        samples = np.asarray(self._samples['time'])
-        blinks = np.asarray(self._blinks['start time'])
-        samples_sorted = np.argsort(samples)
-        blink_positions = np.searchsorted(samples[samples_sorted], blinks)
-        indices = samples_sorted[blink_positions]
-        return self._eeg_index[indices]
+        """
+
+        :return: blink event times in eeg sample number. If binocular, assumes blinks happen in both eyes, and returns
+        The times corresponding to the earliest blink time of the two eyes for each blink
+        """
+        return self._get_synced_et_data(np.asarray(self._blinks['start time']))
 
     def get_synced_saccades(self):
-        samples = np.asarray(self._samples['time'])
-        saccades = np.asarray(self._blinks['start time'])
-        samples_sorted = np.argsort(samples)
-        blink_positions = np.searchsorted(samples[samples_sorted], saccades)
-        indices = samples_sorted[blink_positions]
-        return self._eeg_index[indices]
+        return self._get_synced_et_data(np.asarray(self._saccades['start time']))
 
     @staticmethod
     def _get_block_correlation(eeg_block, et_block):
@@ -229,6 +246,7 @@ class EyeLinkProcessor:
         Creates an ET-EEG index vector for ET samples in self._eeg_index - a vector with length of _samples.shape[0]
         where self._eeg_index[i] is the sample number of the i'th ET sample in the given eeg raw file.
         self._eeg_index[i]=np.NaN where the ET has samples and the EEG doesn't
+        based on Eden Gerber's Matlab function sync_eyetracker_samples_to_eeg
         :param raw: mne.io.Raw containing EEG data whose events can be extracted using mne.find_events
         """
         eeg_data_trig_ch, eeg_sf, eeg_trigs, et_samples, et_sf, et_timediff, \
@@ -244,7 +262,7 @@ class EyeLinkProcessor:
         resampling_factor = self._correct_sampling_rate_discrepancies(eeg_blocks, et_blocks, matched_eeg_blocks,
                                                                       matched_et_blocks)
         et_block_start_in_et_sample = self.get_et_block_starts_in_et_samples(et_block_starts, et_samples, et_trigs)
-        self._generate_eeg_index(eeg_block_starts, eeg_sf, et_block_start_in_et_sample, et_samples, et_sf, et_trigs,
+        self._generate_eeg_index(eeg_block_starts, eeg_sf, et_block_start_in_et_sample, et_samples, et_sf, et_blocks,
                                  matched_eeg_blocks, matched_et_blocks, resampling_factor)
         self._is_synced = True
 
@@ -261,7 +279,7 @@ class EyeLinkProcessor:
         et_blocks = self._get_et_blocks(et_block_pause, et_block_starts, et_recording_stop, et_samples, et_trig_ch)
         return eeg_block_starts, eeg_blocks, et_block_starts, et_blocks
 
-    def _generate_eeg_index(self, eeg_block_starts, eeg_sf, et_block_start_in_et_sample, et_samples, et_sf, et_trigs,
+    def _generate_eeg_index(self, eeg_block_starts, eeg_sf, et_block_start_in_et_sample, et_samples, et_sf, et_blocks,
                             matched_eeg_blocks, matched_et_blocks, resampling_factor):
         """
         for each matched block pair get the EEG
@@ -273,14 +291,15 @@ class EyeLinkProcessor:
         for b in range(matched_eeg_blocks.size):
             block_resample_factor = (et_sf / eeg_sf) * resampling_factor[b]
             et_start = int(et_block_start_in_et_sample[b])
-            et_len = np.floor(et_trigs[matched_et_blocks[b]].size * et_sf / 1000)
+            et_len = int(np.floor(et_blocks[matched_et_blocks[b]].size * et_sf / 1000))
             eeg_start = eeg_block_starts[b]
             eeg_len = np.floor((eeg_block_starts[b + 1] - eeg_block_starts[b]) * block_resample_factor)
-            length = min(eeg_len, et_len)  # the matched time points can only go as long as the shorter recording block
+            length = int(
+                min(eeg_len, et_len))  # the matched time points can only go as long as the shorter recording block
             # but in any case not longer than the length of the ET sample matrix
-            length = int(min(length, et_samples.shape[0] - et_start + 1))
+            length = int(min(length, et_samples.shape[0] - et_start))
             eeg_sample_indexes = np.round(np.arange(0, length, 1) / block_resample_factor).astype(np.int)
-            self._eeg_index[et_start:et_start + length - 1] = eeg_sample_indexes + eeg_start
+            self._eeg_index[et_start:et_start + length] = eeg_sample_indexes + eeg_start
 
     @staticmethod
     def get_et_block_starts_in_et_samples(et_block_starts, et_samples, et_trigs):
