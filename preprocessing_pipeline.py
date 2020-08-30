@@ -50,8 +50,10 @@ reject_criteria = dict(eeg=450e-6, eog=300e-5)  # 200 μV and only extreme eog e
 rej_step = .1  # in seconds
 # %%
 events = mne.find_events(raw, stim_channel="Status", mask=255, min_duration=2 / 2048)
-event_dict_aud = {'short_word': 12, 'long_word': 22}
-event_dict_vis = {'short_scrambled': 110, 'long_scrambled': 112,
+event_dict_aud = {'blink':2, 'saccade':3,
+                  'short_word': 12, 'long_word': 22}
+event_dict_vis = {'blink':2, 'saccade':3,
+                  'short_scrambled': 110, 'long_scrambled': 112,
                   'short_face': 120, 'long_face': 122,
                   'short_obj': 130, 'long_obj': 132,
                   'short_body': 140, 'long_body': 142}

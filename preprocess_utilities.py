@@ -378,7 +378,7 @@ def plot_ica_component(raw, ica, events, event_dict, stimuli, comp_start):
             self.ax[1, 0].set_ylabel('r')
 
             ############# TO DO
-            power_saccade = tfr_morlet(epochs_ica['long_face'], freqs=freqs, average=False,
+            power_saccade = tfr_morlet(epochs_ica['saccade'], freqs=freqs, average=False,
                                        n_cycles=np.round(np.log((freqs + 13) / 10) * 10), use_fft=True,
                                        return_itc=False, decim=3, n_jobs=12)
             TFR_s = power_saccade.average().data
@@ -394,7 +394,7 @@ def plot_ica_component(raw, ica, events, event_dict, stimuli, comp_start):
             self.ax[0, 2].set_xticks(list(time_vec))
             self.ax[0, 2].set_xticklabels(np.round(times_s, 1))
 
-            power_trial = tfr_morlet(epochs_ica, freqs=freqs, average=False,
+            power_trial = tfr_morlet(epochs_ica[list(event_dict.keys())[2:]], freqs=freqs, average=False,
                                      n_cycles=np.round(np.log((freqs + 13) / 10) * 10), use_fft=True,
                                      return_itc=False, decim=3, n_jobs=12)
             TFR_t = power_trial.average().data
@@ -410,7 +410,7 @@ def plot_ica_component(raw, ica, events, event_dict, stimuli, comp_start):
             self.ax[0, 0].set_xticks(list(time_vec))
             self.ax[0, 0].set_xticklabels(np.round(times_t, 1))
 
-            power_blink = tfr_morlet(epochs_ica['short_face'], freqs=freqs, average=False,
+            power_blink = tfr_morlet(epochs_ica['blink'], freqs=freqs, average=False,
                                      n_cycles=np.round(np.log((freqs + 13) / 10) * 10), use_fft=True,
                                      return_itc=False, decim=3, n_jobs=12)
             TFR_b = power_blink.average().data
