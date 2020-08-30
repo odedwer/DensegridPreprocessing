@@ -30,26 +30,27 @@ if __name__ == "__main__":
     # ica.plot_components(picks=components, show=False)
     # plt.show()
     print('creating epochs for plotting components...')
+
+    events = mne.find_events(raw, stim_channel="Status", mask=255, min_duration=2 / 2048)
+    event_dict_aud = {'short_word': 12, 'long_word': 22}
     event_dict_vis = {'short_face': 10, 'long_face': 20,
                       'short_anim': 12, 'long_anim': 22,
-                      'short_obj': 14, 'long_obj': 24}  # ,
-    #                  'short_body': 16, 'long_body': 26}
-    event_dict_aud = {'short_word': 12, 'long_word': 22}
-    epochs = mne.Epochs(raw, mne.find_events(raw, stim_channel="Status", mask=255), event_id=event_dict_vis, tmin=-0.3,
-                        tmax=1.9,
-                        reject=dict(eeg=300e-6), preload=True, reject_by_annotation=True)
+                      'short_obj': 14, 'long_obj': 24,
+                      'short_body': 16, 'long_body': 26}
+    epochs = mne.Epochs(raw, events, event_id=event_dict_vis, tmin=-0.4, baseline=(-0.25, -.10),
+                        tmax=1.9, preload=True, reject_by_annotation=True)
 
     print("plotting properties...")
     # the beginning of each components group to be shown
     comp_jumps = np.linspace(0, ica.n_components_, int(ica.n_components_ / 8) + 1)
     for i in range(len(comp_jumps)):  # go over the components and show 8 each time
-        comps = range(int(comp_jumps[i ]), int(comp_jumps[i + 1]))
+        comps = range(int(comp_jumps[i]), int(comp_jumps[i + 1]))
         print("plotting from component " + str(comps))
         plot_correlations(ica, raw, components=comps,
                           picks=['A19', 'Nose', 'RHEOG', 'LHEOG', 'RVEOGS', 'RVEOGI', 'M1', 'M2', 'LVEOGI'])
 
         ica.plot_properties(epochs, picks=comps, show=False, psd_args={'fmax': 100})  # plot component properties
-        ica.plot_sources(raw, picks=comps, show=False)  # plot sources
+        ica.plot_sources(epochs, picks=comps, show=False)  # plot sources
         print("plotting")
         plt.show()
         if input("keep plotting? (Y/N)") == "N":
