@@ -48,7 +48,10 @@ raw.set_eeg_reference(['Nose'])
 # reject bad intervals based on peak to peak in ICA
 reject_criteria = dict(eeg=450e-6, eog=300e-5)  # 200 μV and only extreme eog events
 rej_step = .1  # in seconds
-# %%
+# %% set events
+
+raw._data[raw.ch_names.index("Status")][blinktimes] = 99  # set blinks
+raw._data[raw.ch_names.index("Status")][saccade_times] = 98  # set saccades
 events = mne.find_events(raw, stim_channel="Status", mask=255, min_duration=2 / 2048)
 event_dict_aud = {'blink':2, 'saccade':3,
                   'short_word': 12, 'long_word': 22}
