@@ -57,7 +57,7 @@ class EyeLinkProcessor:
         parses a sample line from the EDF
         """
         s = self._parser.parse_sample(line)
-        if self._parser.blink:
+        if self._parser.is_blink():
             cur_time = self._samples[-1][self._parser.TIME] + self._dt
             end_time = s[self._parser.TIME]
             while cur_time < end_time:

@@ -225,8 +225,11 @@ def annotate_bads_auto(raw, reject_criteria, jump_criteria, reject_criteria_blin
     data = raw.get_data(picks='eeg')  # matrix size n_channels X samples
     del_arr = [raw.ch_names.index(i) for i in raw.info['bads']]
     data = np.delete(data, del_arr, 0)  # don't check bad channels
-    jumps = abs(sum(np.diff(data))) > len(data) * jump_criteria  # mark large changes (mean change over jump threshold)
+    block_end = (raw.get_data(264).astype(np.int) & 255)[0] == 254
+    jumps = ((block_end[:-1]) |
+             (abs(sum(np.diff(data))) > len(data) * jump_criteria))  # mark large changes (mean change over jump threshold)
     jumps = np.append(jumps, False)  # fix length for comparing
+
     # reject big jumps and threshold crossings, except the beggining and the end.
     rejected_times = (sum(abs(data) > reject_criteria) == 1) & \
                      ((raw._times > 0.1) & (raw._times < max(raw._times) - 0.1))
