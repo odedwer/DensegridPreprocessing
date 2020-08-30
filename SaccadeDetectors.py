@@ -7,7 +7,7 @@ INPUT_SHAPE_ERROR_MSG = "Shape of saccade data is incorrect! should be a 2D matr
 
 
 class EngbertAndMergenthalerMicrosaccadeDetector(BaseSaccadeDetector):
-    NOISE_THRESHOLD_LAMBDA = 5
+    NOISE_THRESHOLD_LAMBDA = 8
 
     @classmethod
     def detect_saccades(cls, eye_location, sf):

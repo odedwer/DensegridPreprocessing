@@ -1,12 +1,14 @@
 from os.path import exists, basename
 from re import split
 from sys import stderr
-from mne import find_events
+
 import numpy as np
 import pandas as pd
+from mne import find_events
 from scipy.stats import pearsonr
-from EyeEnum import Eye
+
 from BaseETParser import BaseETParser
+from EyeEnum import Eye
 
 
 class EyeLinkProcessor:
@@ -56,15 +58,7 @@ class EyeLinkProcessor:
         """
         parses a sample line from the EDF
         """
-        s = self._parser.parse_sample(line)
-        if self._parser.blink:
-            cur_time = self._samples[-1][self._parser.TIME] + self._dt
-            end_time = s[self._parser.TIME]
-            while cur_time < end_time:
-                self._samples.append(self._parser.get_empty_sample(cur_time))
-                cur_time += self._dt
-            self._parser.toggle_blink()
-        self._samples.append(s)
+        self._samples.append(self._parser.parse_sample(line))
 
     def _parse_msg(self, line):
         """
@@ -124,10 +118,10 @@ class EyeLinkProcessor:
             # ignore lines that are not samples or have a first token corresponding to one of the tokens in the
             # parsing methods dictionary
             if self._parser.is_sample(line):
-                line = [EyeLinkProcessor.MISSING_VALUE if i == '.' else i for i in line]
+                line = [EyeLinkProcessor.MISSING_VALUE if i == '.' or i == "C.C" else i for i in line]
                 self._parse_sample(line)
             elif line[0] in self._parser.parse_line_by_token:
-                line = [EyeLinkProcessor.MISSING_VALUE if i == '.' else i for i in line]
+                line = [EyeLinkProcessor.MISSING_VALUE if i == '.' or i == "C.C" else i for i in line]
                 self._parse_line_by_token[line[0]](line)
         # create pandas data frames from the lists of dictionaries
         self._samples = pd.DataFrame(self._samples)
@@ -171,16 +165,21 @@ class EyeLinkProcessor:
         if self._parser.get_type() == Eye.BOTH:
             saccade_indices_l = np.nonzero(self._detected_saccades[:, 0])[0]
             saccade_indices_r = np.nonzero(self._detected_saccades[:, 1])[0]
-            saccade_indices_l_mat = np.repeat(saccade_indices_l, saccade_indices_r.size).reshape(
+            diff_mat = np.repeat(saccade_indices_l, saccade_indices_r.size).reshape(
                 (saccade_indices_r.size, saccade_indices_l.size), order='F')
-            diff_mat = np.abs(saccade_indices_l_mat - saccade_indices_r[:, np.newaxis])
-            min_diff = np.min(diff_mat, axis=1)
-            monocular_saccade_indices = np.where(min_diff < 20)[0]
-            self._detected_saccades = np.zeros_like(self._detected_saccades[:, 0])
-            self._detected_saccades[saccade_indices_r[monocular_saccade_indices]] = 1
+            diff_mat = np.abs(diff_mat - saccade_indices_r[:, np.newaxis])
+            good_diffs = np.min(diff_mat, axis=1) < 20
+
+            monocular_saccade_indices = np.unique(np.argmin(diff_mat, axis=1)[good_diffs])
+            saccade_indices = saccade_indices_l[monocular_saccade_indices]
+            saccade_indices = np.delete(saccade_indices, np.where(np.diff(saccade_indices) < 20)[0] + 1)
+            self._detected_saccades = np.zeros_like(self._detected_saccades[:, 0], dtype=np.int)
+            self._detected_saccades[saccade_indices] = 1
 
     def get_synced_microsaccades(self):
-        return self._eeg_index[self._detected_saccades != 0].astype(np.int)
+        ret = self._eeg_index[self._detected_saccades != 0]
+        ret = ret[~np.isnan(ret)]
+        return ret.astype(np.int)
 
     def _get_synced_et_data(self, times: np.ndarray):
         if self._parser.is_binocular:
