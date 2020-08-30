@@ -20,18 +20,6 @@ class BaseETParser(ABC):
 
     @classmethod
     @abstractmethod
-    def is_blink(cls):
-        """
-        return blink property
-        """
-        pass
-
-    @classmethod
-    def toggle_blink(cls):
-        cls.blink = not cls.blink
-
-    @classmethod
-    @abstractmethod
     def get_empty_sample(cls, time):
         raise NotImplementedError
 

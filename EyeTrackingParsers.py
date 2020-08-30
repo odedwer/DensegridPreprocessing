@@ -39,10 +39,6 @@ class BinocularNoVelocityParser(BaseETParser):
         return True
 
     @classmethod
-    def toggle_blink(cls):
-        cls.blink = not cls.blink
-
-    @classmethod
     def parse_sample(cls, line):
         """
         parses a sample line from the EDF
@@ -107,7 +103,11 @@ class BinocularNoVelocityParser(BaseETParser):
 
     @classmethod
     def is_sample(cls, line):
-        return line[-2] == '.....'
+        try:
+            int(line[0])
+            return True
+        except:
+            return line[-2] == '.....'
 
     @classmethod
     def get_type(cls):
