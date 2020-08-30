@@ -51,7 +51,7 @@ class EngbertAndMergenthalerMicrosaccadeDetector(BaseSaccadeDetector):
         # calculate saccade starts - first_saccade_index, then cumsum for length up to next sequence,
         # which is length of 1 run + length of 0 run
         saccade_starts = np.cumsum(
-            np.hstack([[first_saccade_index], saccade_run_lengths[:-1] + no_saccade_run_lengths]))
+            np.hstack([[first_saccade_index], saccade_run_lengths + no_saccade_run_lengths]))
         saccade_start_indices = possible_saccade_indices[saccade_starts]
         return saccade_start_indices
 

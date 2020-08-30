@@ -107,7 +107,7 @@ class BinocularNoVelocityParser(BaseETParser):
 
     @classmethod
     def is_sample(cls, line):
-        return line[-2] == '.....'
+        return line[-2] == '.....' or (len(line)>6 and (line[1] == line[2] == line[4] == line[5] == '.' and line[3] == line[6] == "0.0"))
 
     @classmethod
     def get_type(cls):
