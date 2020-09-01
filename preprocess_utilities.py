@@ -191,9 +191,9 @@ def plot_all_channels_var(raw, max_val, threshold, remove_from_top=8):
     data = raw.get_data(picks=channs)
     bad_points = raw._annotations.onset
     timepoints = np.round(raw._times[np.arange(len(data[1,]))], 2)
-    not_bad_points = np.in1d(timepoints, np.round(bad_points, 2))
-    var_vec = np.array([data[i, not_bad_points].var() for i in
-                        channs])  # get only the ppoints that were not annotated as bad for the variance calculation!
+    not_bad_points = ~np.in1d(timepoints, np.round(bad_points, 2))
+    var_vec = np.var(data[channs][:, not_bad_points],
+                     axis=1)  # get only the ppoints that were not annotated as bad for the variance calculation!
     var_vec[var_vec > max_val] = max_val  # for visualiztions
     electrode_letter = [i[0] for i in raw.ch_names[0:(len(channs))]]
     for i in channs:  # print names of noisy electrodes
@@ -227,7 +227,8 @@ def annotate_bads_auto(raw, reject_criteria, jump_criteria, reject_criteria_blin
     data = np.delete(data, del_arr, 0)  # don't check bad channels
     block_end = (raw.get_data(264).astype(np.int) & 255)[0] == 254
     jumps = ((block_end[:-1]) |
-             (abs(sum(np.diff(data))) > len(data) * jump_criteria))  # mark large changes (mean change over jump threshold)
+             (abs(sum(np.diff(data))) > len(
+                 data) * jump_criteria))  # mark large changes (mean change over jump threshold)
     jumps = np.append(jumps, False)  # fix length for comparing
 
     # reject big jumps and threshold crossings, except the beggining and the end.
@@ -387,7 +388,7 @@ def plot_ica_component(raw, ica, events, event_dict, stimuli, comp_start):
             TFR_s = power_saccade.average().data
             times_s = power_saccade.average().times[0:len(TFR_s[0, 0]):55]
             TFR_s_corrected = (TFR_s[0].transpose() - (np.mean(TFR_s[0][:, 40:100], axis=1))).transpose()
-            self.ax[0, 2].imshow((TFR_s_corrected), cmap='jet', origin='lowest', aspect='auto')
+            self.ax[0, 2].imshow((TFR_s_corrected[:,25:320]), cmap='jet', origin='lowest', aspect='auto')
             self.ax[0, 2].set_title('Saccade-locked TF')
             self.ax[0, 2].set_ylabel('Hz')
             self.ax[0, 2].set_xlabel('Time (s)')
@@ -403,7 +404,7 @@ def plot_ica_component(raw, ica, events, event_dict, stimuli, comp_start):
             TFR_t = power_trial.average().data
             times_t = power_trial.average().times[0:len(power_saccade.average().times):55]
             TFR_t_corrected = (TFR_t[0].transpose() - (np.mean(TFR_t[0][:, 40:100], axis=1))).transpose()
-            self.ax[0, 0].imshow((TFR_t_corrected), cmap='jet', origin='lowest', aspect='auto')
+            self.ax[0, 0].imshow((TFR_t_corrected[:,25:320]), cmap='jet', origin='lowest', aspect='auto')
             self.ax[0, 0].set_title('Stimulus-locked TF')
             self.ax[0, 0].set_ylabel('Hz')
             self.ax[0, 0].set_xlabel('Time (s)')
@@ -419,7 +420,7 @@ def plot_ica_component(raw, ica, events, event_dict, stimuli, comp_start):
             TFR_b = power_blink.average().data
             times_b = power_blink.average().times[0:len(power_blink.average().times):55]
             TFR_b_corrected = (TFR_b[0].transpose() - (np.mean(TFR_b[0][:, 40:100], axis=1))).transpose()
-            self.ax[0, 1].imshow((TFR_b_corrected), cmap='jet', origin='lowest', aspect='auto')
+            self.ax[0, 1].imshow((TFR_b_corrected[:,25:320]), cmap='jet', origin='lowest', aspect='auto')
             self.ax[0, 1].set_title('Blink-locked TF')
             self.ax[0, 1].set_ylabel('Hz')
             self.ax[0, 1].set_xlabel('Time (s)')
@@ -524,9 +525,9 @@ def ica_checker(raw, ica):
             break
 
 
-def multiply_event(raw, stim_onset_events, event_id=1,
-                   cut_before_event=30, cut_after_event=50,
-                   cut_epochs=1700, size_new=1):
+def multiply_event(raw, event_dict, events, event_id=98,
+                   cut_before_event=30 / 1000, cut_after_event=50 / 1000,
+                   cut_epochs=1.7, size_new=1):
     """
     The function creates a new raw data for ICA,
      with the extension being a multiplication of allwanted events, in order to create dominant components in the ICA.
@@ -540,37 +541,39 @@ def multiply_event(raw, stim_onset_events, event_id=1,
     :param cut_before_event: how much to cut after event
     :param raw: original raw file
     :param event_id: the name of the event to cut (saccades usually)
-    :param stim_onset_events: numbers of stimulus onsets (will be at the dictionary of events)
+    :param event_dict: numbers of stimulus onsets (will be at the dictionary of events)
     :param size_new: integer. how many times should i multiply the raws list
     :return: the new concatenated raw file
     """
 
-    # 1
     raw.load_data()
-    is_saccade = np.round(raw.get_data("Status")) == event_id  # for every time point be True if its a saccade
-    is_stim_onset = np.in1d(np.round(raw.get_data("Status")), stim_onset_events)
-    not_rejected = ~(np.in1d(np.round(raw._times), np.round(
-        raw._annotations.onset)))  # marks all the times that did not include an artifact in a range of second
-    saccade_times = raw._times[is_saccade[0] & not_rejected]
-    stim_onset_times = raw._times[is_stim_onset & not_rejected]
-    # 2
-    raw_array = []
-    for i in range(len(saccade_times)):
-        curr_crop = raw.copy().crop(tmin=saccade_times[i] - cut_before_event/1000,
-                             tmax=saccade_times[i] + cut_after_event/1000)
-        print(i)
-        curr_crop._data = (curr_crop._data.T - np.mean(curr_crop._data, axis=1)).T  # mean-center
-        raw_array.append(curr_crop)
-    # 3
-    print(len(saccade_times), " saccade segements created")
-    for i in range(len(stim_onset_times)):
-        curr_crop = raw.copy().crop(tmin=stim_onset_times[i] - 50/1000,
-                             tmax=stim_onset_times[i] + cut_epochs/1000)
-        print(i)
-        curr_crop._data = (curr_crop._data.T - np.mean(curr_crop._data, axis=1)).T
-        raw_array.append(curr_crop)
+    epochs_saccades = mne.Epochs(raw, events, event_id=event_id,
+                                 tmin=-cut_before_event, tmax=cut_after_event,
+                                 baseline=(-cut_before_event, cut_after_event),
+                                 reject_tmin=-cut_before_event, reject_tmax=cut_after_event,
+                                 # reject based on 100 ms before trial onset and 1500 after
+                                 preload=True,
+                                 reject_by_annotation=True)  # currently includes mean-centering - should we?
 
-    raw_array = raw_array * size_new
-    print(len(stim_onset_times), " stimulus segements created")
+    data_s = np.hstack(epochs_saccades.get_data())
+    data_s = np.hstack([data_s.copy() for _ in range(size_new)])
+    print("Shape of saccades data:", data_s.shape)
+    raw_saccades = mne.io.RawArray(data_s, raw.info)
 
-    return mne.concatenate_raws(raw_array)
+    epochs_trials = mne.Epochs(raw, events, event_id=event_dict,
+                               tmin=-.1, tmax=cut_epochs,
+                               baseline=(-.1, cut_epochs), reject_tmin=0, reject_tmax=cut_epochs,
+                               # reject based on 100 ms before trial onset and 1500 after
+                               preload=True,
+                               reject_by_annotation=True)  # currently includes mean-centering - should we?
+    data_t = np.hstack(epochs_trials.get_data())
+
+    print("Shape of trials data:", data_t.shape)
+    raw_trials = mne.io.RawArray(data_t, raw.info)
+    raw_for_ica = mne.concatenate_raws([raw_trials, raw_saccades])
+    raw_multiplied = raw_for_ica.copy()
+    # for i in range(size_new - 1):
+    #     raw_multiplied = mne.concatenate_raws([raw_multiplied, raw_for_ica])
+    #     print(f"length is multiplied by {i + 2}")
+
+    return raw_multiplied

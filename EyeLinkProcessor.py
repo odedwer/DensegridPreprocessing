@@ -172,7 +172,7 @@ class EyeLinkProcessor:
 
             monocular_saccade_indices = np.unique(np.argmin(diff_mat, axis=1)[good_diffs])
             saccade_indices = saccade_indices_l[monocular_saccade_indices]
-            saccade_indices = np.delete(saccade_indices, np.where(np.diff(saccade_indices) < 20)[0] + 1)
+            saccade_indices = np.delete(saccade_indices, np.where(np.diff(saccade_indices) < 50)[0] + 1)
             self._detected_saccades = np.zeros_like(self._detected_saccades[:, 0], dtype=np.int)
             self._detected_saccades[saccade_indices] = 1
 
