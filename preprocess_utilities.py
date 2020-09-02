@@ -388,7 +388,7 @@ def plot_ica_component(raw, ica, events, event_dict, stimuli, comp_start):
             TFR_s = power_saccade.average().data
             times_s = power_saccade.average().times[0:len(TFR_s[0, 0]):55]
             TFR_s_corrected = (TFR_s[0].transpose() - (np.mean(TFR_s[0][:, 40:100], axis=1))).transpose()
-            self.ax[0, 2].imshow((TFR_s_corrected[:,25:320]), cmap='jet', origin='lowest', aspect='auto')
+            self.ax[0, 2].imshow((TFR_s_corrected), cmap='jet', origin='lowest', aspect='auto')
             self.ax[0, 2].set_title('Saccade-locked TF')
             self.ax[0, 2].set_ylabel('Hz')
             self.ax[0, 2].set_xlabel('Time (s)')
@@ -404,7 +404,7 @@ def plot_ica_component(raw, ica, events, event_dict, stimuli, comp_start):
             TFR_t = power_trial.average().data
             times_t = power_trial.average().times[0:len(power_saccade.average().times):55]
             TFR_t_corrected = (TFR_t[0].transpose() - (np.mean(TFR_t[0][:, 40:100], axis=1))).transpose()
-            self.ax[0, 0].imshow((TFR_t_corrected[:,25:320]), cmap='jet', origin='lowest', aspect='auto')
+            self.ax[0, 0].imshow((TFR_t_corrected), cmap='jet', origin='lowest', aspect='auto')
             self.ax[0, 0].set_title('Stimulus-locked TF')
             self.ax[0, 0].set_ylabel('Hz')
             self.ax[0, 0].set_xlabel('Time (s)')
@@ -420,7 +420,7 @@ def plot_ica_component(raw, ica, events, event_dict, stimuli, comp_start):
             TFR_b = power_blink.average().data
             times_b = power_blink.average().times[0:len(power_blink.average().times):55]
             TFR_b_corrected = (TFR_b[0].transpose() - (np.mean(TFR_b[0][:, 40:100], axis=1))).transpose()
-            self.ax[0, 1].imshow((TFR_b_corrected[:,25:320]), cmap='jet', origin='lowest', aspect='auto')
+            self.ax[0, 1].imshow((TFR_b_corrected), cmap='jet', origin='lowest', aspect='auto')
             self.ax[0, 1].set_title('Blink-locked TF')
             self.ax[0, 1].set_ylabel('Hz')
             self.ax[0, 1].set_xlabel('Time (s)')

@@ -50,8 +50,12 @@ class EngbertAndMergenthalerMicrosaccadeDetector(BaseSaccadeDetector):
         first_saccade_index = np.argmax(detected_saccades_indices)  # index of first 1
         # calculate saccade starts - first_saccade_index, then cumsum for length up to next sequence,
         # which is length of 1 run + length of 0 run
-        saccade_starts = np.cumsum(
-            np.hstack([[first_saccade_index], saccade_run_lengths + no_saccade_run_lengths]))
+        print(saccade_run_lengths.size, no_saccade_run_lengths.size)
+        a=len(saccade_run_lengths)
+        if (len(saccade_run_lengths) - len(no_saccade_run_lengths)) == 1: ##
+            saccade_run_lengths = saccade_run_lengths[:-1]
+        summation = saccade_run_lengths + no_saccade_run_lengths
+        saccade_starts = np.cumsum(np.hstack([[first_saccade_index], summation]))
         saccade_start_indices = possible_saccade_indices[saccade_starts]
         return saccade_start_indices
 
@@ -80,3 +84,4 @@ class EngbertAndMergenthalerMicrosaccadeDetector(BaseSaccadeDetector):
         msdx = np.sqrt((np.median(velocities[:, 0] ** 2)) - (np.median(velocities[:, 0]) ** 2))
         msdy = np.sqrt((np.median(velocities[:, 1] ** 2)) - (np.median(velocities[:, 1]) ** 2))
         return msdx, msdy
+

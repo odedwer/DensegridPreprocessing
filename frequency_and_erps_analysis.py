@@ -21,41 +21,44 @@ import gc
 
 
 # %% parameters
-chosen_s_trigs = ['short_word']
-chosen_l_trigs = ['long_word']
-chosen_s_trigs = ['short_anim', 'short_obj', 'short_face']
-chosen_l_trigs = ['long_anim', 'long_obj', 'long_face']
-# freq_range = [5, 200]
+stimuli = ['short_scrambled', 'long_scrambled','short_face', 'long_face',
+           'short_obj', 'long_obj','short_body', 'long_body']
+stimuli=["short_word","long word"]
+#chosen_s_trigs = stimuli[6]
+#chosen_l_trigs = stimuli[7]
+
+freq_range = [5, 200]
 base_correction = (-0.25, -.10)  # when epoch starts at -0.400
 correction_mode = 'logratio'
 # alpha = [8, 12]
 # beta = [13, 30]
 # narrowgamma = [31, 60]
-# high_gamma = [80, 200]
+# high_gamma = [60, 150]
 freqsH = np.logspace(5, 7.6, 30, base=2)
-freqsL = np.logspace(1, 5.5, 8, base=2)
+freqs_all = np.logspace(1, 7.6, 40, base=2)
+freqsL = np.logspace(1, 5, 8, base=2)
 n_perm = 500
-save_path = 'SavedResults/S3'
+save_path = 'SavedResults/S4'
 # %% # triggers for ERP - choose triggers, create topomap and ERP graph per chosen electrode ##n all
-curr_epochs = filt_epochs  # choose the triggers you want to process
+curr_epochs = epochs_filt  # choose the triggers you want to process
 evoked = curr_epochs.average()
-evoked.plot_topomap(outlines='skirt', times=[0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 0.7, 0.9])
+evoked.plot_topomap(outlines='skirt', times=[0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 0.7, 0.9,1.1,1.3,1.5,1.7])
 
 # %% # visualize ERP by electrode
-filt_epochs_plot = curr_epochs.plot_image(picks=['A1'])
+filt_epochs_plot = curr_epochs["short_face","long_face"].plot_image(picks=['B30'])
 #%% calculate power and save
-power_long_H = tfr_morlet(epochs['long_anim', 'long_obj', 'long_face', 'long_body'], freqs=freqsH, average=False,
+power_long_H = tfr_morlet(epochs[stimuli[1]], freqs=freqsH, average=False,
                           n_cycles=freqsH / 10, use_fft=True,
-                          return_itc=False, decim=3, n_jobs=5)
-power_long_H.save(os.path.join(save_path, 'S3_vis_detrended_ord10_10s_windows_long_trials_high_freq-pow.fif'))
-del power_long_H
+                          return_itc=False, decim=3, n_jobs=12)
+power_long_H.save(os.path.join(save_path, 'S4_aud_avgRef_long_trials_high_freq-pow.fif'))
+power_long_H=power_long_H.average()
 gc.collect()
 #%%
-power_short_H = tfr_morlet(epochs['short_anim', 'short_obj', 'short_face', 'short_body'], freqs=freqsH, average=False,
+power_short_H = tfr_morlet(epochs[stimuli[0]], freqs=freqsH, average=False,
                            n_cycles=freqsH / 10, use_fft=True,
-                           return_itc=False, decim=3, n_jobs=5)
-power_short_H.save(os.path.join(save_path, 'S3_vis_detrended_ord10_10s_windows_short_trials_high_freq-pow.fif'))
-del power_short_H
+                           return_itc=False, decim=3, n_jobs=12)
+power_short_H.save(os.path.join(save_path, 'S4_aud_avgRef_short_trials_high_freq-pow.fif'))
+power_short_H = power_short_H.average()
 gc.collect()
 #%% low freqs tfr
 power_long_L = tfr_morlet(epochs['long_anim', 'long_obj', 'long_face', 'long_body'], freqs=freqsL, average=False,
@@ -78,23 +81,24 @@ power.plot_topo(baseline=base_correction, mode=correction_mode, title='Average p
                        tmin=-0.3, tmax=1.8,vmin=-.25, vmax=.25, layout_scale=.5 )
 
 # %% show ERP after hilbert
-## filter raw data for 60-80, 80-100, 100-120,120-140 using iir butterwoth filter of order 3
+## filter raw data using iir butterwoth filter of order 3
 raw_hilb = []
-nbands = 4  # starting from 60, jumping by 20
+nbands = 4  # starting from 50, jumping by 20
 for i in range(4):
     curr_l_freq = (i + 1) * 20 + 30
     curr_h_freq = curr_l_freq + 20
-        raw_bp = raw.copy().filter(l_freq=curr_l_freq, h_freq=curr_h_freq, method='iir',
-                                   iir_params=dict(order=3, ftype='butter'))
+    raw_bp = raw.copy().filter(l_freq=curr_l_freq, h_freq=curr_h_freq, method='iir',
+                               iir_params=dict(order=3, ftype='butter'))
     raw_hilb.append(raw_bp.apply_hilbert(envelope=True))  # compute envelope of analytic signal
     raw_hilb[i]._data[:] = 10 * np.log10(raw_hilb[i]._data[:] ** 2)  # change to dB
     raw_hilb[i]._data = raw_hilb[i]._data[:] - np.reshape(raw_hilb[i]._data[:].mean(1),(raw_hilb[i].info['nchan'],1))
     # demean to apply correction
     print("finished band of " + str(curr_l_freq) + " - " + str(curr_h_freq))
+    input()
 
 ##  compute mean of all filter bands
-raw_hilb[4]._data = (raw_hilb[0]._data + raw_hilb[1]._data + raw_hilb[2]._data + raw_hilb[3]._data) / nbands
-epochs_hilb = mne.Epochs(raw_hilb[0], events, event_id=event_dict_vis,
+raw_hilb[0]._data = (raw_hilb[0]._data + raw_hilb[1]._data + raw_hilb[2]._data + raw_hilb[3]._data) / nbands
+epochs_hilb = mne.Epochs(raw_hilb[0], events, event_id=event_dict_aud,
                          tmin=-0.4, tmax=1.9, baseline=None,
                          reject_tmin=-.1, reject_tmax=1.5,  # reject based on 100 ms before trial onset and 1500 after
                          preload=True, reject_by_annotation=True)
@@ -102,10 +106,17 @@ epochs_hilb = mne.Epochs(raw_hilb[0], events, event_id=event_dict_vis,
 # apply hilbert
 epochs_hilb.apply_baseline((-.3, -.1), verbose=True)
 
+
 # %% show ERP after hilbert
 check_electrode = "B6"
-epochs_hilb['short_anim', 'short_obj', 'short_face', 'short_body'].plot_image(picks=[check_electrode])
+epochs_hilb['short_word'].plot_image(picks=[check_electrode])
 
+#%%
+short_epo_hilb = epochs_hilb["short_word"].average()
+long_epo_hilb = epochs_hilb["long_word"].average()
+long_m_short_hilb = mne.combine_evoked([long_epo_hilb,short_epo_hilb],[1,-1])
+plt.plot(raw.ch_names[:256],np.sum((long_m_short_hilb.data[:,716:1080]),axis=1))
+long_m_short_hilb.plot_topo()
 # %%
 # power_list = []
 # # widths = [0.2, 0.4]
