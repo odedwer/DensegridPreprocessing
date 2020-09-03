@@ -50,12 +50,12 @@ raw.set_eeg_reference(['Nose'])
 reject_criteria = dict(eeg=400e-6, eog=300e-5)  # 300 μV and only extreme eog events
 rej_step = .1  # in seconds
 # %% set events
-et_processor = EyeLinkProcessor("SavedResults/S4/auds4b.asc",ParserType.MONOCULAR_NO_VELOCITY,
+et_processor = EyeLinkProcessor("SavedResults/S4/S4_visual.asc",ParserType.MONOCULAR_NO_VELOCITY,
                                 SaccadeDetectorType.ENGBERT_AND_MERGENTHALER)
 et_processor.sync_to_raw(raw)
 saccade_times = et_processor.get_synced_microsaccades()
 blink_times  =et_processor.get_synced_blinks()
-#check sync
+#check sync - shold see that all orange markers have blue line from the EEG
 plt.plot((raw.get_data(259))[0]>0.0001,linewidth=.5) # EOG channel
 plt.plot(np.in1d(np.arange(len(raw.get_data(1)[0])),blink_times),linewidth=.7) #blink triggers
 #%% add triggers to data
