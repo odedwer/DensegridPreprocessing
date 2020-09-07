@@ -23,7 +23,7 @@ import gc
 # %% parameters
 stimuli = ['short_scrambled', 'long_scrambled','short_face', 'long_face',
            'short_obj', 'long_obj','short_body', 'long_body']
-stimuli=["short_word","long word"]
+stimuli=["short_word","long_word"]
 #chosen_s_trigs = stimuli[6]
 #chosen_l_trigs = stimuli[7]
 

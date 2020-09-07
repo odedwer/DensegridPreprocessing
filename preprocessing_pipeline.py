@@ -9,7 +9,7 @@ from SaccadeDetectorType import SaccadeDetectorType
 # matplotlib.use('Qt5Agg')
 
 # %%
-raw=mne.io.read_raw_fif(input(),preload=True)
+copy_raw=mne.io.read_raw_fif(input(),preload=True)
 # %%
 # upload raw files AFTER robust detrending
 raws = read_bdf_files(preload=True)
@@ -44,7 +44,7 @@ raw.info['bads']
 # set the montage of the electrodes - position on head
 # %%
 raw.set_montage(montage=mne.channels.read_custom_montage("SavedResults/S2/S2.elc"), raise_if_subset=False)
-raw.set_eeg_reference(['Nose'])
+raw.set_eeg_reference()
 # %%
 # reject bad intervals based on peak to peak in ICA
 reject_criteria = dict(eeg=400e-6, eog=300e-5)  # 300 μV and only extreme eog events
@@ -113,7 +113,7 @@ copy_raw._data[copy_raw.ch_names.index("Status")][saccade_times.astype(np.int)] 
 
 # %%
 #ica.exclude=[0,1,9,10,11,12,15,16,17,18,19,20,21,23,24,25,26,27,28]
-ica.apply(copy_raw)
+ica.apply(raw)
 # copy_raw.save("SavedResults/S4/S4_vis_unfiltered_rejected200jump100_after_ica-raw.fif")
 
 
