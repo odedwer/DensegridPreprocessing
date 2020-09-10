@@ -347,7 +347,7 @@ def plot_ica_component(raw, ica, events, event_dict, stimuli, comp_start):
             now = datetime.now()
             set_type = {i: 'eeg' for i in ica_raw.ch_names}  # setting ica_raw
             ica_raw.set_channel_types(mapping=set_type)
-            self.ica.plot_propertieks(epochs[stimuli], picks=index, show=False,
+            self.ica.plot_properties(epochs[stimuli], picks=index, show=False,
                                      psd_args={'fmax': 100})  # plot component properties
             # self.fig, self.ax = config_plot()
             [[self.ax[i, j].clear() for j in range(3)] for i in range(2)]  # clear current axes
@@ -384,7 +384,7 @@ def plot_ica_component(raw, ica, events, event_dict, stimuli, comp_start):
             # TF
             power_saccade = tfr_morlet(epochs_ica['saccade'], freqs=freqs, average=False,
                                        n_cycles=np.round(np.log((freqs + 13) / 10) * 10), use_fft=True,
-                                       return_itc=False, decim=3, n_jobs=12)
+                                       return_itc=False, picks=0,decim=3, n_jobs=12)
             TFR_s = power_saccade.average().data
             times_s = power_saccade.average().times[0:len(TFR_s[0, 0]):55]; times_s=times_s[1:-1]
             TFR_s_corrected = (TFR_s[0].transpose() - (np.mean(TFR_s[0][:, 40:100], axis=1))).transpose()
@@ -400,27 +400,27 @@ def plot_ica_component(raw, ica, events, event_dict, stimuli, comp_start):
 
             power_trial = tfr_morlet(epochs_ica[list(event_dict.keys())[2:]], freqs=freqs, average=False,
                                      n_cycles=np.round(np.log((freqs + 13) / 10) * 10), use_fft=True,
-                                     return_itc=False, decim=3, n_jobs=12)
+                                     return_itc=False, picks=0, decim=3, n_jobs=12)
             TFR_t = power_trial.average().data
             times_t = power_trial.average().times[0:len(power_saccade.average().times):55]; times_t=times_t[1:-1]
             TFR_t_corrected = (TFR_t[0].transpose() - (np.mean(TFR_t[0][:, 40:100], axis=1))).transpose()
-            self.ax[0, 0].imshow((TFR_t_corrected), cmap='jet', origin='lowest', aspect='auto')
+            self.ax[0, 0].imshow((TFR_t_corrected[:,55:340]), cmap='jet', origin='lowest', aspect='auto')
             self.ax[0, 0].set_title('Stimulus-locked TF')
             self.ax[0, 0].set_ylabel('Hz')
             self.ax[0, 0].set_xlabel('Time (s)')
             self.ax[0, 0].set_yticks(list(freqs_to_show))
             self.ax[0, 0].set_yticklabels(np.round(freqs[freqs_to_show]))
-            time_vec = np.arange(len(TFR_t[0, 0]))[0:len(TFR_t[0, 0]):55]
+            time_vec = np.arange(len(TFR_t[0, 0]))[0:len(TFR_t[0, 0]):55];time_vec=time_vec[1:-1]-55
             self.ax[0, 0].set_xticks(list(time_vec))
             self.ax[0, 0].set_xticklabels(np.round(times_t, 1))
 
             power_blink = tfr_morlet(epochs_ica['blink'], freqs=freqs, average=False,
                                      n_cycles=np.round(np.log((freqs + 13) / 10) * 10), use_fft=True,
-                                     return_itc=False, decim=3, n_jobs=12)
+                                     return_itc=False, picks=0, decim=3, n_jobs=12)
             TFR_b = power_blink.average().data
-            times_b = power_blink.average().times[0:len(power_blink.average().times):45]; times_b=times_b[1:-1]
+            times_b = power_blink.average().times[0:len(power_blink.average().times):55]; times_b=times_b[1:-1]
             TFR_b_corrected = (TFR_b[0].transpose() - (np.mean(TFR_b[0][:, 40:100], axis=1))).transpose()
-            self.ax[0, 1].imshow((TFR_b_corrected), cmap='jet', origin='lowest', aspect='auto')
+            self.ax[0, 1].imshow((TFR_b_corrected[:,55:340]), cmap='jet', origin='lowest', aspect='auto')
             self.ax[0, 1].set_title('Blink-locked TF')
             self.ax[0, 1].set_ylabel('Hz')
             self.ax[0, 1].set_xlabel('Time (s)')
@@ -562,8 +562,7 @@ def multiply_event(raw, event_dict, events, event_id=98,
 
     epochs_trials = mne.Epochs(raw, events, event_id=event_dict,
                                tmin=-.1, tmax=cut_epochs,
-                               baseline=(-.1, cut_epochs), reject_tmin=0, reject_tmax=cut_epochs,
-                               # reject based on 100 ms before trial onset and 1500 after
+                               baseline=(-.1, cut_epochs), reject_tmin=0, reject_tmax=cut_epochs,  # reject based on 100 ms before trial onset and 1500 after
                                preload=True,
                                reject_by_annotation=True)  # currently includes mean-centering - should we?
     data_t = np.hstack(epochs_trials.get_data())

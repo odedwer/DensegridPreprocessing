@@ -34,7 +34,7 @@ correction_mode = 'logratio'
 # beta = [13, 30]
 # narrowgamma = [31, 60]
 # high_gamma = [60, 150]
-freqsH = np.logspace(5, 7.6, 30, base=2)
+freqsH = np.logspace(5, 7.6, 50, base=2)
 freqs_all = np.logspace(1, 7.6, 40, base=2)
 freqsL = np.logspace(1, 5, 8, base=2)
 n_perm = 500
@@ -50,15 +50,15 @@ filt_epochs_plot = curr_epochs["short_face","long_face"].plot_image(picks=['B30'
 power_long_H = tfr_morlet(epochs[stimuli[1]], freqs=freqsH, average=False,
                           n_cycles=freqsH / 10, use_fft=True,
                           return_itc=False, decim=3, n_jobs=12)
-power_long_H.save(os.path.join(save_path, 'S4_aud_avgRef_long_trials_high_freq-pow.fif'))
 power_long_H=power_long_H.average()
+power_long_H.save(os.path.join(save_path, 'S4_audWord_avgRef_long_trials_high_freq-pow.fif'))
 gc.collect()
 #%%
 power_short_H = tfr_morlet(epochs[stimuli[0]], freqs=freqsH, average=False,
                            n_cycles=freqsH / 10, use_fft=True,
                            return_itc=False, decim=3, n_jobs=12)
-power_short_H.save(os.path.join(save_path, 'S4_aud_avgRef_short_trials_high_freq-pow.fif'))
 power_short_H = power_short_H.average()
+power_short_H.save(os.path.join(save_path, 'S4_audWord_avgRef_short_trials_high_freq-pow.fif'))
 gc.collect()
 #%% low freqs tfr
 power_long_L = tfr_morlet(epochs['long_anim', 'long_obj', 'long_face', 'long_body'], freqs=freqsL, average=False,
@@ -98,25 +98,35 @@ for i in range(4):
 
 ##  compute mean of all filter bands
 raw_hilb[0]._data = (raw_hilb[0]._data + raw_hilb[1]._data + raw_hilb[2]._data + raw_hilb[3]._data) / nbands
+raw_hilb[0].filter(l_freq=2,h_freq=30)
 epochs_hilb = mne.Epochs(raw_hilb[0], events, event_id=event_dict_aud,
                          tmin=-0.4, tmax=1.9, baseline=None,
                          reject_tmin=-.1, reject_tmax=1.5,  # reject based on 100 ms before trial onset and 1500 after
                          preload=True, reject_by_annotation=True)
 #del raw_hilb
 # apply hilbert
-epochs_hilb.apply_baseline((-.3, -.1), verbose=True)
+epochs_hilb.apply_baseline((-.3, -.05), verbose=True)
 
 
 # %% show ERP after hilbert
-check_electrode = "B6"
-epochs_hilb['short_word'].plot_image(picks=[check_electrode])
+check_electrode = "G8"
+epochs_hilb['short_word'].plot_image(picks=[check_electrode],title="short HFB average power")
+#epochs_hilb['long_word'].plot_image(picks=[check_electrode],title="long HFB average power")
+#%%
+evokedHFB_L = epochs_hilb["long_word"].average()
+evokedHFB_S = epochs_hilb["short_word"].average()
+mne.viz.plot_compare_evokeds({"Long":evokedHFB_L,"Short":evokedHFB_S},check_electrode,title="Long and short HFB",vlines=[.8,1.5])
 
 #%%
 short_epo_hilb = epochs_hilb["short_word"].average()
 long_epo_hilb = epochs_hilb["long_word"].average()
 long_m_short_hilb = mne.combine_evoked([long_epo_hilb,short_epo_hilb],[1,-1])
-plt.plot(raw.ch_names[:256],np.sum((long_m_short_hilb.data[:,716:1080]),axis=1))
+plt.plot(raw.ch_names[:256],np.sum((long_m_short_hilb.data[:,614:970]),axis=1))
 long_m_short_hilb.plot_topo()
+# %%
+
+
+
 # %%
 # power_list = []
 # # widths = [0.2, 0.4]

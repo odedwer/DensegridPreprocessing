@@ -20,13 +20,14 @@ raw.drop_channels(['ET_RX', 'ET_RY', 'ET_R_PUPIL', 'ET_LX', 'ET_LY',
 copy_raw = raw.copy()  # make a copy before adding the new channel
 raw = raw.resample(512,n_jobs=12)
 raw.filter(h_freq=None, l_freq=1, n_jobs=12)
+raw.notch_filter(freqs=np.arange(50, 251, 50))
 raw.plot(n_channels=30, duration=30)  # exclude electrodes from artifact rejection
 raw = set_reg_eog(raw)
 
 # %%
-raw = annotate_bads_auto(raw, reject_criteria=200e-6, jump_criteria=100e-6) #by threshold and jump
+raw = annotate_bads_auto(raw, reject_criteria=150e-6, jump_criteria=100e-6) #by threshold and jump
 # %% plot again to see annotations and mark missed noise/jumps
-raw.plot(n_channels=30, duration=30)  # to see data and mark bad  segments
+raw.plot(n_channels=20, duration=10)  # to see data and mark bad  segments
 
 # %%
 print("total time annotated as bad: ", round(sum(raw._annotations.duration), 2))
@@ -47,12 +48,13 @@ raw.set_montage(montage=mne.channels.read_custom_montage("SavedResults/S2/S2.elc
 raw.set_eeg_reference()
 # %%
 # reject bad intervals based on peak to peak in ICA
-reject_criteria = dict(eeg=400e-6, eog=300e-5)  # 300 μV and only extreme eog events
+reject_criteria = dict(eeg=200e-6, eog=300e-5)  # 300 μV and only extreme eog events
 rej_step = .1  # in seconds
 # %% set events
-et_processor = EyeLinkProcessor("SavedResults/S4/S4_visual.asc",ParserType.MONOCULAR_NO_VELOCITY,
+et_processor = EyeLinkProcessor("SavedResults/S4/auds4w.asc",ParserType.MONOCULAR_NO_VELOCITY,
                                 SaccadeDetectorType.ENGBERT_AND_MERGENTHALER)
 et_processor.sync_to_raw(raw)
+mne.viz.plot_compare_evokeds([evoked_L,evoked_S],"A1")
 saccade_times = et_processor.get_synced_microsaccades()
 blink_times  =et_processor.get_synced_blinks()
 #check sync - shold see that all orange markers have blue line from the EEG
@@ -81,13 +83,13 @@ event_dict = {'short_scrambled': 110, 'long_scrambled': 112,
 raw_for_ica = multiply_event(raw,{'short_word': 12, 'long_word': 22},events, event_id=event_dict_vis["saccade"],size_new=4)
 
 # %% for saving the multiplied raw file:
-s_num=input("subject number?")
+s_num = input("subject number?")
 raw_for_ica.save(f"SavedResults/S{s_num}/S{s_num}_aud_multiplied_for_ica-raw.fif")#,overwrite=True)
 # %%
 ica = mne.preprocessing.read_ica(input("file?"))
 
 # %%fit ica
-ica = mne.preprocessing.ICA(n_components=.99, method='infomax',
+ica = mne.preprocessing.ICA(n_components=.95, method='infomax',
                             random_state=97, max_iter=800, fit_params=dict(extended=True))
 ica.fit(raw_for_ica, reject_by_annotation=True, reject=reject_criteria)
 ica.save(
@@ -113,12 +115,12 @@ copy_raw._data[copy_raw.ch_names.index("Status")][saccade_times.astype(np.int)] 
 
 # %%
 #ica.exclude=[0,1,9,10,11,12,15,16,17,18,19,20,21,23,24,25,26,27,28]
-ica.apply(raw)
+ica.apply(copy_raw)
 # copy_raw.save("SavedResults/S4/S4_vis_unfiltered_rejected200jump100_after_ica-raw.fif")
 
 
 # %% # epoch- set triggers dictionairy, find events, crate epoch objects - divided by triggers
-raw_filt = raw.copy().filter(l_freq=1, h_freq=40)  # performing filtering on copy of raw data, not on raw itself or epochs
+raw_filt = raw.copy().filter(l_freq=1, h_freq=30)  # performing filtering on copy of raw data, not on raw itself or epochs
 raw_filt.notch_filter([50, 100, 150])  # notch filter
 
 
@@ -134,12 +136,12 @@ epochs_filt = mne.Epochs(raw_filt, events, event_id=event_dict_aud,
                     reject_tmin=-.1, reject_tmax=1.5,  # reject based on 100 ms before trial onset and 1500 after
                     preload=True, reject_by_annotation=True)
 
-
-evoked = epochs.average()
-# %%
+# %% create evokeds and plot comparison
+evoked_L = epochs_filt["long_word"].average()
+evoked_S = epochs_filt["short_word"].average()
+mne.viz.plot_compare_evokeds({"Long":evoked_L,"Short":evoked_S},"A1",title="Long and short evoked response",vlines=[.8,1.5])# %%
 ds_epochs = epochs.copy().resample(512)
 # %%
-evoked.plot_topomap()
 
 # %%
 def plt_plot(series):
