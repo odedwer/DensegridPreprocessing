@@ -201,6 +201,9 @@ class EyeLinkProcessor:
     def get_synced_saccades(self):
         return self._get_synced_et_data(np.asarray(self._saccades['start time']))
 
+    def get_synced_fixations(self):
+        return self._get_synced_et_data(np.asarray(self._fixations.loc[self._fixations['eye'] == 'R', 'start time']))
+
     @staticmethod
     def _get_block_correlation(eeg_block, et_block):
         min_len = min(eeg_block.size, et_block.size)

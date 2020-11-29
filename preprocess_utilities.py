@@ -347,8 +347,8 @@ def plot_ica_component(raw, ica, events, event_dict, stimuli, comp_start):
             now = datetime.now()
             set_type = {i: 'eeg' for i in ica_raw.ch_names}  # setting ica_raw
             ica_raw.set_channel_types(mapping=set_type)
-            self.ica.plot_properties(epochs[stimuli], picks=index, show=False,
-                                     psd_args={'fmax': 100})  # plot component properties
+         #   self.ica.plot_properties(epochs[stimuli], picks=index, show=False,
+          #                           psd_args={'fmax': 100})  # plot component properties
             # self.fig, self.ax = config_plot()
             [[self.ax[i, j].clear() for j in range(3)] for i in range(2)]  # clear current axes
             self.fig.suptitle("Component " + str(index) + " - zoom in subplots for detail", fontsize=12)
@@ -576,3 +576,26 @@ def multiply_event(raw, event_dict, events, event_id=98,
     #     print(f"length is multiplied by {i + 2}")
 
     return raw_multiplied
+
+
+
+
+
+def duration_tracking(epo_A, epo_B, time_diff,p_thresh=0.01):
+    """
+    Calculates duration tracking score by point-by point t-test. after deriving t and p-value, get
+    :return:dt_scores - the mean of above threshold t-tests.
+    """
+
+    samples_of_int = (epo_A.times>time_diff[0]) & (epo_A.times<time_diff[1]) # take only the timepoints of interest
+    n_points = sum(samples_of_int)#number of points of interest for later normaliztion of DT scores
+    t_tests = stats.ttest_ind(epo_A.get_data(picks='eeg'), epo_B.get_data(picks='eeg'))
+    t_vals = t_tests.statistic[:,samples_of_int]  # size N_electrodes & N_timepoints - subset for timepoints of interest
+    p_vals = t_tests.pvalue[:,samples_of_int]
+    p_vals_sig = p_vals < p_thresh
+    dt_scores = np.sum(t_vals * p_vals_sig,axis=1)/n_points # send insignificant t's to zero for the summation
+
+    return (dt_scores)
+
+
+

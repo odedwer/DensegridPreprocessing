@@ -84,7 +84,7 @@ power.plot_topo(baseline=base_correction, mode=correction_mode, title='Average p
 ## filter raw data using iir butterwoth filter of order 3
 raw_hilb = []
 nbands = 4  # starting from 50, jumping by 20
-for i in range(4):
+for i in range(nbands):
     curr_l_freq = (i + 1) * 20 + 30
     curr_h_freq = curr_l_freq + 20
     raw_bp = raw.copy().filter(l_freq=curr_l_freq, h_freq=curr_h_freq, method='iir',
@@ -98,8 +98,8 @@ for i in range(4):
 
 ##  compute mean of all filter bands
 raw_hilb[0]._data = (raw_hilb[0]._data + raw_hilb[1]._data + raw_hilb[2]._data + raw_hilb[3]._data) / nbands
-raw_hilb[0].filter(l_freq=2,h_freq=30)
-epochs_hilb = mne.Epochs(raw_hilb[0], events, event_id=event_dict_aud,
+raw_hilb[0].filter(l_freq=1,h_freq=30) # should I?
+epochs_hilb = mne.Epochs(raw_hilb[0], events, event_id=event_dict_vis,
                          tmin=-0.4, tmax=1.9, baseline=None,
                          reject_tmin=-.1, reject_tmax=1.5,  # reject based on 100 ms before trial onset and 1500 after
                          preload=True, reject_by_annotation=True)
@@ -109,12 +109,13 @@ epochs_hilb.apply_baseline((-.3, -.05), verbose=True)
 
 
 # %% show ERP after hilbert
-check_electrode = "G8"
-epochs_hilb['short_word'].plot_image(picks=[check_electrode],title="short HFB average power")
-#epochs_hilb['long_word'].plot_image(picks=[check_electrode],title="long HFB average power")
+check_electrode = "A11"
+#epochs_hilb['short_word'].plot_image(picks=[check_electrode],title=check_electrode+"short HFB average power")
+epochs_hilb['long_face'].plot_image(picks=[check_electrode],title=check_electrode+" long HFB average power")
+
 #%%
-evokedHFB_L = epochs_hilb["long_word"].average()
-evokedHFB_S = epochs_hilb["short_word"].average()
+evokedHFB_L = epochs_hilb["long_face"].average()
+evokedHFB_S = epochs_hilb["short_face"].average()
 mne.viz.plot_compare_evokeds({"Long":evokedHFB_L,"Short":evokedHFB_S},check_electrode,title="Long and short HFB",vlines=[.8,1.5])
 
 #%%
@@ -122,9 +123,17 @@ short_epo_hilb = epochs_hilb["short_word"].average()
 long_epo_hilb = epochs_hilb["long_word"].average()
 long_m_short_hilb = mne.combine_evoked([long_epo_hilb,short_epo_hilb],[1,-1])
 plt.plot(raw.ch_names[:256],np.sum((long_m_short_hilb.data[:,614:970]),axis=1))
+plt.plot(raw.ch_names[:256],np.sum((evokedHFB_L.data[:,300:970]),axis=1))
 long_m_short_hilb.plot_topo()
 # %%
 
+# %% compute point by point long-short t-test and then duration tracking score, for each electrode
+# for our cause, the duration tracking period is end of first to end of second
+
+dt_scores = duration_tracking(epochs_hilb[stimuli[1:6:2]],epochs_hilb[stimuli[0:6:2]],time_diff=[0.8,1.5])
+mne.viz.plot_topomap(dt_scores,epochs_hilb.info)
+plt.bar(raw.ch_names[0:256],dt_scores)
+plt.plot(raw.ch_names[0:256],dt_scores)
 
 
 # %%

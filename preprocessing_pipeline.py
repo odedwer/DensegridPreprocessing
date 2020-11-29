@@ -9,7 +9,14 @@ from SaccadeDetectorType import SaccadeDetectorType
 # matplotlib.use('Qt5Agg')
 
 # %%
-copy_raw=mne.io.read_raw_fif(input(),preload=True)
+raw=mne.io.read_raw_fif(input(),preload=True)
+raw.filter(h_freq=None, l_freq=1, n_jobs=12)
+time_rejected=[]
+for i in np.arange(50,260,5):
+    # reject artifacts based on +- 50 ms above threshold
+    raw = annotate_bads_auto(raw, reject_criteria=i*1e-6, jump_criteria=1000e-6)  # by threshold and jump
+    time_rejected.append(round(sum(raw._annotations.duration), 2))
+
 # %%
 # upload raw files AFTER robust detrending
 raws = read_bdf_files(preload=True)
@@ -50,27 +57,32 @@ raw.set_eeg_reference()
 # reject bad intervals based on peak to peak in ICA
 reject_criteria = dict(eeg=200e-6, eog=300e-5)  # 300 μV and only extreme eog events
 rej_step = .1  # in seconds
+
 # %% set events
-et_processor = EyeLinkProcessor("SavedResults/S4/auds4w.asc",ParserType.MONOCULAR_NO_VELOCITY,
+et_processor = EyeLinkProcessor("SavedResults/S2/vis_S2.asc",ParserType.MONOCULAR_NO_VELOCITY,
                                 SaccadeDetectorType.ENGBERT_AND_MERGENTHALER)
 et_processor.sync_to_raw(raw)
-mne.viz.plot_compare_evokeds([evoked_L,evoked_S],"A1")
 saccade_times = et_processor.get_synced_microsaccades()
-blink_times  =et_processor.get_synced_blinks()
-#check sync - shold see that all orange markers have blue line from the EEG
-plt.plot((raw.get_data(259))[0]>0.0001,linewidth=.5) # EOG channel
+blink_times = et_processor.get_synced_blinks()
+fixation_times = et_processor.get_synced_fixations()
+#check sync - shold see that orange markers have close blue lines from the EEG
+eog_events = mne.preprocessing.find_eog_events(raw, 998)
+plt.plot(np.sum([np.arange(len(raw._data[0]))==i for i in eog_events[:,0]],axis=0))# EOG channel events
 plt.plot(np.in1d(np.arange(len(raw.get_data(1)[0])),blink_times),linewidth=.7) #blink triggers
+
 #%% add triggers to data
 saccade_times=np.sort(np.concatenate([saccade_times,saccade_times+1,saccade_times+2])) # make them longer
 blink_times=np.sort(np.concatenate([blink_times,blink_times+1,blink_times+2])) # make them longer
+fixation_times=np.sort(np.concatenate([fixation_times,fixation_times+1,fixation_times+2])) # make them longer
 raw._data[raw.ch_names.index("Status")][blink_times.astype(np.int)] = 99  # set blinks
 raw._data[raw.ch_names.index("Status")][saccade_times.astype(np.int)] = 98  # set saccades
+raw._data[raw.ch_names.index("Status")][fixation_times.astype(np.int)] = 97  # set fixations
 
 # %%
 events = mne.find_events(raw, stim_channel="Status", mask=255, min_duration=2 / raw.info['sfreq'])
-event_dict_aud = {'blink':99, 'saccade':98,
+event_dict_aud = {'blink':99, 'saccade':98,'fixation':97,
                   'short_word': 12, 'long_word': 22}
-event_dict_vis = {'blink':99, 'saccade':98,
+event_dict_vis = {'blink':99, 'saccade':98,'fixation':97,
                   'short_scrambled': 110, 'long_scrambled': 112,
                   'short_face': 120, 'long_face': 122,
                   'short_obj': 130, 'long_obj': 132,
@@ -80,7 +92,7 @@ event_dict = {'short_scrambled': 110, 'long_scrambled': 112,
               'short_face': 120, 'long_face': 122,
               'short_obj': 130, 'long_obj': 132,
               'short_body': 140, 'long_body': 142} # for cutting trials to ICA
-raw_for_ica = multiply_event(raw,{'short_word': 12, 'long_word': 22},events, event_id=event_dict_vis["saccade"],size_new=4)
+raw_for_ica = multiply_event(raw,event_dict,events, event_id=event_dict_vis["saccade"],size_new=4)
 
 # %% for saving the multiplied raw file:
 s_num = input("subject number?")
@@ -102,7 +114,7 @@ ica.plot_sources(raw)
 #            'short_obj', 'long_obj','short_body', 'long_body']
 stimuli = ['long_word','short_word']
 comp_start = 0  # from which component to start showing
-ica.exclude = plot_ica_component(raw, ica, events, event_dict_aud, stimuli, comp_start)
+ica.exclude = plot_ica_component(raw, ica, events, event_dict_vis, stimuli, comp_start)
 
 # %% prepare unfiltered data and apply ICA
 copy_raw = set_reg_eog(copy_raw)
